@@ -45,28 +45,18 @@ if (cmd === 'digest') {
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: ui.prompt() });
 const question = (q) => new Promise((res) => rl.question(q, res));
 
-let chatName;
-if (cmd === 'new') {
-  chatName = name;
-} else if (cmd === 'resume') {
-  const chats = listChats(root);
-  if (chats.length === 0) { console.error('no chats yet — run: unite new <name>'); process.exit(1); }
-  chats.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
-  const answer = await question(`chat number [1]: `);
-  chatName = chats[(parseInt(answer, 10) || 1) - 1] ?? chats[0];
-} else {
-  chatName = latestChat(root) ?? 'main';
-}
-const dir = ensureChat(root, chatName);
-
-console.log(`unite — chat "${chatName}" — roster: ${config.roster.map((s) => '@' + s).join(' ')} (@all)`);
-console.log('mention someone to get a reply; /who /last /last-error /quit\n');
-
 let activeControl = null;
 let sigints = 0;
+let pickerActive = false;
 
+// Registered immediately after rl exists, before any picker: while a
+// question() is pending there are otherwise zero 'SIGINT' listeners, which
+// makes Node auto-pause the stream with no way to resume it (F2).
 rl.on('SIGINT', () => {
-  if (activeControl) {
+  if (pickerActive) {
+    console.log();
+    process.exit(0);
+  } else if (activeControl) {
     sigints++;
     if (sigints === 1) { ui.printSystem('(skipping current turn — ^C again to drain the queue)'); activeControl.skipTurn(); }
     else activeControl.drain();
@@ -76,7 +66,31 @@ rl.on('SIGINT', () => {
   }
 });
 
+let chatName;
+if (cmd === 'new') {
+  chatName = name;
+} else if (cmd === 'resume') {
+  const chats = listChats(root);
+  if (chats.length === 0) { console.error('no chats yet — run: unite new <name>'); process.exit(1); }
+  chats.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
+  pickerActive = true;
+  const answer = await question(`chat number [1]: `);
+  pickerActive = false;
+  chatName = chats[(parseInt(answer, 10) || 1) - 1] ?? chats[0];
+} else {
+  chatName = latestChat(root) ?? 'main';
+}
+const dir = ensureChat(root, chatName);
+
+console.log(`unite — chat "${chatName}" — roster: ${config.roster.map((s) => '@' + s).join(' ')} (@all)`);
+console.log('mention someone to get a reply; /who /last /last-error /quit\n');
+
 rl.on('line', async (line) => {
+  // Input keeps flowing during a round (F1: rl.pause() made SIGINT
+  // unreachable mid-round, since a paused stream can't process keypresses).
+  // Lines that arrive while a round is in flight are dropped with a hint —
+  // not recorded, not queued.
+  if (activeControl) { ui.printSystem('(agents are thinking — ^C skips the turn)'); return; }
   const text = line.trim();
   if (!text) { rl.prompt(); return; }
   if (text === '/quit') { rl.close(); return; }
@@ -95,12 +109,10 @@ rl.on('line', async (line) => {
   }
   activeControl = new RoundControl();
   sigints = 0;
-  rl.pause();
   try {
     await runRound({ humanText: text, dir, adapters, config, ui, control: activeControl });
   } finally {
     activeControl = null;
-    rl.resume();
     rl.prompt();
   }
 });
