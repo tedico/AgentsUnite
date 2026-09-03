@@ -186,3 +186,18 @@ test('drain() stops the queue', async () => {
   await runRound({ humanText: '@claude go', dir, adapters: { claude, gemini, cursor: fakeAdapter('cursor') }, config: CONFIG, ui: quietUi, control });
   assert.equal(gemini.calls.length, 0);
 });
+
+test('ok reply with no sessionRef prints a system warning', async () => {
+  const dir = tmpDir();
+  const systemMsgs = [];
+  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  const claude = fakeAdapter('claude', [{ ok: true, replyText: 'hi', sessionRef: null }]);
+  await runRound({
+    humanText: '@claude go', dir,
+    adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') },
+    config: CONFIG, ui, control: new RoundControl(),
+  });
+  assert.ok(systemMsgs.some((m) => /@claude/.test(m) && /session ref/i.test(m)));
+  const s = loadState(dir, ROSTER);
+  assert.equal(s.agents.claude.sessionRef, null);
+});
