@@ -34,3 +34,11 @@ test('failure shapes: nonzero exit w/ session → sessionLost; garbage json → 
   const r2 = await garbage.invoke({ prompt: 'x', sessionRef: null });
   assert.match(r2.error, /json/i);
 });
+
+test('a leading JSON update notice does not shadow the response payload', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: `{"notice":"update available"}\n${OK_JSON}` });
+  const a = agyAdapter({ binary: bin, timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.deepEqual(res, { ok: true, replyText: 'gemini here', sessionRef: 'conv-9' });
+});

@@ -61,3 +61,19 @@ test('extractJson pulls outermost object from noisy output', () => {
 test('extractJson skips non-JSON braces and tries next candidate', () => {
   assert.deepEqual(extractJson('[info {init: true}]\n{"ok": true}'), { ok: true });
 });
+
+test('extractJson with requiredKeys prefers the payload over a leading noise object', () => {
+  const text = '{"type":"update","version":"1.2"}\n{"result":"hello from claude","session_id":"s1"}';
+  assert.deepEqual(extractJson(text, ['result']), { result: 'hello from claude', session_id: 's1' });
+});
+
+test('extractJson with requiredKeys falls back to the first parseable object', () => {
+  const text = '{"notice":true}\n{"other":1}';
+  assert.deepEqual(extractJson(text, ['result']), { notice: true });
+});
+
+test('extractJson with empty requiredKeys keeps first-parseable behavior', () => {
+  const text = '{"notice":true}\n{"result":"x"}';
+  assert.deepEqual(extractJson(text, []), { notice: true });
+  assert.deepEqual(extractJson(text), { notice: true });
+});
