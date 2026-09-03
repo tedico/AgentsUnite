@@ -77,3 +77,11 @@ test('extractJson with empty requiredKeys keeps first-parseable behavior', () =>
   assert.deepEqual(extractJson(text, []), { notice: true });
   assert.deepEqual(extractJson(text), { notice: true });
 });
+
+test('extractJson requiredKeys is any-of: one listed key is enough', () => {
+  const text = '{"notice":true}\n{"text":"from cursor","chatId":"c1"}';
+  assert.deepEqual(
+    extractJson(text, ['result', 'response', 'text']),
+    { text: 'from cursor', chatId: 'c1' },
+  );
+});
