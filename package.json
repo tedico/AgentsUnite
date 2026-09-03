@@ -1,0 +1,9 @@
+{
+  "name": "agentsunite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "unite": "bin/unite.js" },
+  "scripts": { "test": "node --test test/" },
+  "engines": { "node": ">=20" }
+}
