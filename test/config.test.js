@@ -23,3 +23,12 @@ test('user config shallow-merges, binaries/models deep-merge', () => {
   assert.equal(cfg.binaries.gemini, '/opt/agy');
   assert.equal(cfg.binaries.claude, 'claude');
 });
+
+test('roster is a fresh copy, not shared with DEFAULT_CONFIG', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'unite-cfg-'));
+  const cfg = loadConfig(root);
+  assert.notEqual(cfg.roster, DEFAULT_CONFIG.roster);
+  assert.deepEqual(cfg.roster, DEFAULT_CONFIG.roster);
+  cfg.roster.push('new-agent');
+  assert.ok(!DEFAULT_CONFIG.roster.includes('new-agent'));
+});
