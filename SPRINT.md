@@ -2,18 +2,20 @@
 
 ## Phases
 - [x] Phase 0 — Design: spec approved by Ted (sections in chat) + Gemini (adversarial review, O1–O5 → A1–A5)
-- [ ] Phase 1 — Core engine: REPL, turn engine, transcript/state, fake-adapter tests
-- [ ] Phase 2 — Adapters: spike checklist, then claude/agy/cursor adapters + contract tests
-- [ ] Phase 3 — Polish: self-healing resume, `unite digest`, install-to-PATH, live smoke test
+- [x] Phase 1 — Core engine: REPL, turn engine, transcript/state, fake-adapter tests
+- [x] Phase 2 — Adapters: spike checklist, then claude/agy/cursor adapters + contract tests
+- [x] Phase 3 — Polish: self-healing resume, `unite digest`, install-to-PATH, live smoke test
 
 ## Current phase
-Phase 0 — Design (spec written, awaiting Ted's review)
+Phase 3 — Polish (complete; awaiting merge + Ted's acceptance session)
 
 ## Next
-Ted reviews `docs/superpowers/specs/2026-09-02-unite-groupchat-design.md`; on approval, invoke writing-plans for the implementation plan.
+Merge worktree branch; install unite from main checkout (scripts/install.sh); Ted runs a real planning session as acceptance
 
 ## Human
-- Review and approve the design spec
+- Run a real `unite` planning session and judge the UX
+- Decide /who liveness: implement a liveness marker or amend the spec wording (final review #10)
+- Acknowledge: cursor seat runs with --trust (auto-trusts the project dir for headless cursor calls; read-only still enforced by --mode plan)
 
 ## Blockers
 none
