@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "bin": { "unite": "bin/unite.js" },
-  "scripts": { "test": "node --test test/" },
+  "scripts": { "test": "node --test test/*.test.js" },
   "engines": { "node": ">=20" }
 }

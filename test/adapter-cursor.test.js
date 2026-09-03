@@ -23,6 +23,14 @@ test('later turn adds --resume; tolerates alternate JSON field names', async () 
     ['-p', '--trust', '--mode', 'plan', '--output-format', 'json', '--resume', 'chat-7', '--', 'x']);
 });
 
+test('live-shape fixture: session_id field name (per spec amendment)', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: JSON.stringify({ session_id: 'sess-9', result: 'live cursor shape' }) });
+  const a = cursorAdapter({ binary: bin, timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.deepEqual(res, { ok: true, replyText: 'live cursor shape', sessionRef: 'sess-9' });
+});
+
 test('reply text missing entirely → bad json failure', async () => {
   const dir = stubDir();
   const bin = makeStub(dir, { stdout: JSON.stringify({ chatId: 'chat-7' }) });

@@ -17,6 +17,17 @@ test('ensureChat creates the directory', () => {
   assert.ok(fs.statSync(dir).isDirectory());
 });
 
+test('ensureChat writes a self-ignoring .unite/.gitignore (F6)', () => {
+  const root = tmpRoot();
+  ensureChat(root, 'plan');
+  const giPath = path.join(root, '.unite', '.gitignore');
+  assert.equal(fs.readFileSync(giPath, 'utf8'), '*\n');
+  // idempotent: a second ensureChat call (e.g. a later session) doesn't error
+  // and leaves the content untouched.
+  ensureChat(root, 'plan');
+  assert.equal(fs.readFileSync(giPath, 'utf8'), '*\n');
+});
+
 test('listChats orders by transcript mtime, latestChat picks first', () => {
   const root = tmpRoot();
   const a = ensureChat(root, 'older'); const b = ensureChat(root, 'newer');

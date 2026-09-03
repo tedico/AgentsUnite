@@ -14,6 +14,8 @@ Merge worktree branch; install unite from main checkout (scripts/install.sh); Te
 
 ## Human
 - Run a real `unite` planning session and judge the UX
+- Decide /who liveness: implement a liveness marker or amend the spec wording (final review #10)
+- Acknowledge: cursor seat runs with --trust (auto-trusts the project dir for headless cursor calls; read-only still enforced by --mode plan)
 
 ## Blockers
 none

@@ -31,6 +31,20 @@ test('kills on timeout', async () => {
   assert.equal(r.timedOut, true);
 });
 
+test('EPIPE from a fast-exiting child while writing large stdinText never throws (F4)', async () => {
+  // Without child.stdin.on('error', () => {}) this reliably crashes the whole
+  // process with an unhandled 'error' event (verified: 3/3 runs on Node 22
+  // throw "Error: write EPIPE" before the guard was added). The child exits
+  // immediately, closing its stdin pipe while a large write is still landing.
+  const big = 'x'.repeat(50 * 1024 * 1024); // 50MB — large enough to still be writing after exit
+  const r = await runHeadless({
+    cmd: process.execPath,
+    args: ['-e', 'process.exit(0)'],
+    stdinText: big,
+  });
+  assert.equal(r.spawnError, false);
+});
+
 test('missing binary resolves with spawnError, never throws', async () => {
   const r = await runHeadless({ cmd: '/nonexistent/binary-xyz', args: [] });
   assert.equal(r.spawnError, true);

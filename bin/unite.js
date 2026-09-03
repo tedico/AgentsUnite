@@ -3,7 +3,7 @@ import readline from 'node:readline';
 import process from 'node:process';
 import { parseArgv } from '../lib/cli.js';
 import { loadConfig } from '../lib/config.js';
-import { ensureChat, listChats, latestChat, chatDir } from '../lib/paths.js';
+import { ensureChat, listChats, latestChat } from '../lib/paths.js';
 import { runRound, RoundControl } from '../lib/engine.js';
 import { makeUi } from '../lib/ui.js';
 import { claudeAdapter } from '../lib/adapters/claude.js';
@@ -111,6 +111,11 @@ rl.on('line', async (line) => {
   sigints = 0;
   try {
     await runRound({ humanText: text, dir, adapters, config, ui, control: activeControl });
+  } catch (err) {
+    // F5: an uncaught throw here (corrupt transcript line, disk full, etc.)
+    // would otherwise escape this async event handler as a process-fatal
+    // unhandled rejection, killing the whole session mid-chat.
+    ui.printSystem(`(round failed: ${err?.message ?? err})`);
   } finally {
     activeControl = null;
     rl.prompt();

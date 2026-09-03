@@ -153,6 +153,28 @@ test('self-healing: sessionLost triggers one fresh-session replay retry', async 
   assert.equal(s.agents.claude.sessionRef, 's-new');
 });
 
+test('prompt-building throw still stops the spinner via finally (F5)', async () => {
+  const dir = tmpDir();
+  // A malformed transcript line (e.g. from a corrupt write) parses fine as
+  // JSON but has a non-string text field, which blows up inside buildPrompt
+  // (renderLines calls m.text.replace). The spinner must still be stopped.
+  fs.appendFileSync(path.join(dir, 'transcript.jsonl'),
+    JSON.stringify({ ts: 't0', from: 'ted', text: null, mentions: ['claude'] }) + '\n');
+  let started = 0;
+  let stopped = 0;
+  const ui = {
+    startStatus: () => { started++; return () => { stopped++; }; },
+    printReply: () => {},
+    printSystem: () => {},
+  };
+  await assert.rejects(runRound({
+    humanText: '@claude go', dir, adapters: { claude: fakeAdapter('claude'), gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') },
+    config: CONFIG, ui, control: new RoundControl(),
+  }));
+  assert.equal(started, 1);
+  assert.equal(stopped, 1); // stopStatus ran via finally despite the throw
+});
+
 test('drain() stops the queue', async () => {
   const dir = tmpDir();
   const control = new RoundControl();
