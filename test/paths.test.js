@@ -54,3 +54,13 @@ test('legal dotted chat names are accepted', () => {
   assert.equal(dir, path.join(root, '.unite', 'chats', 'notes.v1'));
   assert.ok(fs.statSync(dir).isDirectory());
 });
+
+test('chat names "." and ".." are rejected', () => {
+  const root = tmpRoot();
+  const dotMsg = /invalid chat name "\."; must match .* and cannot be "\." or "\.\."/;
+  const dotDotMsg = /invalid chat name "\.\."; must match .* and cannot be "\." or "\.\."/;
+  assert.throws(() => chatDir(root, '.'), dotMsg);
+  assert.throws(() => chatDir(root, '..'), dotDotMsg);
+  assert.throws(() => ensureChat(root, '.'), dotMsg);
+  assert.throws(() => ensureChat(root, '..'), dotDotMsg);
+});

@@ -48,3 +48,12 @@ test('nonzero exit with sessionRef reports sessionLost for engine self-heal', as
   assert.equal(res.sessionLost, true);
   assert.match(res.stderr, /chat not found/);
 });
+
+test('a leading JSON update notice does not shadow the payload', async () => {
+  const dir = stubDir();
+  const payload = JSON.stringify({ chatId: 'chat-7', result: 'cursor here' });
+  const bin = makeStub(dir, { stdout: `{"notice":"update available"}\n${payload}` });
+  const a = cursorAdapter({ binary: bin, timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.deepEqual(res, { ok: true, replyText: 'cursor here', sessionRef: 'chat-7' });
+});
