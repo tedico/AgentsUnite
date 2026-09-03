@@ -10,7 +10,7 @@ import { claudeAdapter } from '../lib/adapters/claude.js';
 import { agyAdapter } from '../lib/adapters/agy.js';
 import { cursorAdapter } from '../lib/adapters/cursor.js';
 import { appendDigest } from '../lib/digest.js';
-import { readTranscript, lastError } from '../lib/transcript.js';
+import { readTranscript, lastError, appendRoundError } from '../lib/transcript.js';
 
 const root = process.cwd();
 const config = loadConfig(root);
@@ -123,6 +123,7 @@ rl.on('line', async (line) => {
     // would otherwise escape this async event handler as a process-fatal
     // unhandled rejection, killing the whole session mid-chat.
     ui.printSystem(`(round failed: ${err?.message ?? err})`);
+    appendRoundError(dir, err);
   } finally {
     activeControl = null;
     rl.prompt();

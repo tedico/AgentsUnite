@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { appendMessage, readTranscript, loadState, saveState, appendErrorLog, lastError } from '../lib/transcript.js';
+import { appendMessage, readTranscript, loadState, saveState, appendErrorLog, lastError, appendRoundError } from '../lib/transcript.js';
 
 function tmpDir() { return fs.mkdtempSync(path.join(os.tmpdir(), 'unite-chat-')); }
 const ROSTER = ['claude', 'gemini', 'cursor'];
@@ -35,4 +35,14 @@ test('error log appends and lastError returns most recent block', () => {
   appendErrorLog(dir, 'cursor', 'second failure');
   assert.match(lastError(dir), /cursor/);
   assert.match(lastError(dir), /second failure/);
+});
+
+test('appendRoundError writes the Error stack so lastError can surface it', () => {
+  const dir = tmpDir();
+  const err = new Error('round exploded');
+  appendRoundError(dir, err);
+  const logged = lastError(dir);
+  assert.match(logged, /round/);
+  assert.match(logged, /round exploded/);
+  assert.match(logged, /^\s+at /m);
 });

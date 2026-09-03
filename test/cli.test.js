@@ -9,11 +9,11 @@ import { parseArgv } from '../lib/cli.js';
 
 const UNITE = fileURLToPath(new URL('../bin/unite.js', import.meta.url));
 
-function runUnite(cwd, args, { timeoutMs = 5000 } = {}) {
+function runUnite(cwd, args, { timeoutMs = 5000, stdin } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [UNITE, ...args], {
       cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [stdin != null ? 'pipe' : 'ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
     let stderr = '';
@@ -25,6 +25,10 @@ function runUnite(cwd, args, { timeoutMs = 5000 } = {}) {
       clearTimeout(timer);
       resolve({ code, stdout, stderr });
     });
+    if (stdin != null) {
+      child.stdin.write(stdin);
+      child.stdin.end();
+    }
   });
 }
 
@@ -49,4 +53,16 @@ test('unknown roster seat in config fails fast with a clean error, even for ls',
   assert.doesNotMatch(stderr, /TypeError/);
   assert.doesNotMatch(stderr, /^\s+at /m);
   assert.doesNotMatch(stdout, /TypeError/);
+});
+
+test('throwing round appends the full stack to the chat errors.log', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'unite-c5-'));
+  const chat = path.join(root, '.unite', 'chats', 'main');
+  fs.mkdirSync(chat, { recursive: true });
+  fs.writeFileSync(path.join(chat, 'transcript.jsonl'),
+    JSON.stringify({ ts: 't0', from: 'ted', text: null, mentions: ['claude'] }) + '\n');
+  await runUnite(root, [], { stdin: '@claude go\n/quit\n' });
+  const log = fs.readFileSync(path.join(chat, 'errors.log'), 'utf8');
+  assert.match(log, /round failed|TypeError|Cannot read propert/i);
+  assert.match(log, /^\s+at /m);
 });
