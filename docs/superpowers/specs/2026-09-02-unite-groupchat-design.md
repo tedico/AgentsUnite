@@ -125,13 +125,13 @@ already happened once — see below) touches config, not identity.
 | Seat | Binary | First turn | Later turns | Read-only |
 |---|---|---|---|---|
 | claude | `claude` | `claude -p --permission-mode plan --output-format json` | + `--resume <session_id>` | `plan` mode |
-| gemini | `agy` | `agy --print "<delta>" --mode plan --output-format json --disable-slash-commands` | + `--conversation <conversation_id>` | `plan` mode |
+| gemini | `agy` | `agy --print "<delta>" --mode plan --output-format json` | + `--conversation <conversation_id>` | `plan` mode |
 | cursor | `cursor-agent` | `cursor-agent -p --mode plan --output-format json` | + `--resume <chatId>` | `--mode plan` |
 
 **The Gemini seat targets `agy` (Antigravity CLI), not `gemini`.** Verified
 2026-09-02: `@google/gemini-cli` v0.42.0 fails auth with `IneligibleTierError`
 ("migrate to the Antigravity suite"); `agy` v1.1.24 at `~/.local/bin/agy`
-confirms `--conversation <id>`, `--mode plan`, `--disable-slash-commands`,
+confirms `--conversation <id>`, `--mode plan`,
 `--output-format json|stream-json`, `--print-timeout` (default 5m) via `--help`.
 Per Gemini's empirical finding, `agy`'s `-p` parses greedily (`-p --mode plan`
 consumes `--mode` as the prompt): the contract mandates the explicit
@@ -186,3 +186,10 @@ designed fallback):
 - 2026-09-02 — Claude ⇄ Gemini design review on COLLABORATION.md: O1–O5 raised,
   A1–A5 accepted, both RESOLVED markers posted. Full exchange preserved in
   COLLABORATION.md.
+- 2026-09-02 — Amendment (live-verified during implementation): in `agy`,
+  `--disable-slash-commands` DISABLES `--mode plan` (stderr warning: "--mode plan
+  has no effect while slash command expansion is disabled"), so the flag is
+  REMOVED from the agy adapter — plan mode is the load-bearing read-only
+  guarantee; the REPL already intercepts slash-prefixed input locally so no
+  transcript line reaches agy starting with "/". Found by Antigravity's review
+  (finding G2); reproduced by Claude before ruling.
