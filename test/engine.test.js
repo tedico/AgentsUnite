@@ -84,6 +84,45 @@ test('turn cap: stops at cap, final turn gets budget notice', async () => {
   assert.match(lastPrompt, new RegExp(BUDGET_NOTICE.slice(0, 20)));
 });
 
+test('turn cap: printSystem notice fires when the final turn\'s reply is suppressed (ping-pong)', async () => {
+  const dir = tmpDir();
+  // claude and gemini mention each other forever; the final turn's mention
+  // never lands in the queue (nothing left to drain there) but IS suppressed.
+  const loop = (seat, other) => ({
+    seat,
+    calls: [],
+    async invoke() { return { ok: true, replyText: `over to @${other}`, sessionRef: `s-${seat}` }; },
+  });
+  const claude = loop('claude', 'gemini');
+  const gemini = loop('gemini', 'claude');
+  const systemMsgs = [];
+  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  await runRound({ humanText: '@claude start', dir, adapters: { claude, gemini, cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
+  assert.ok(systemMsgs.some((m) => /turn budget \(8\) reached — back to you/.test(m)));
+});
+
+test('turn cap: no printSystem notice when the round ends naturally under the cap', async () => {
+  const dir = tmpDir();
+  const systemMsgs = [];
+  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  // default reply mentions nobody, so the round ends naturally after 1 turn, well under the cap.
+  const claude = fakeAdapter('claude');
+  await runRound({ humanText: '@claude hi', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
+  assert.ok(!systemMsgs.some((m) => /turn budget/.test(m)));
+});
+
+test('rejected invoke degrades to failure-as-absence, not an unhandled rejection', async () => {
+  const dir = tmpDir();
+  const gemini = { seat: 'gemini', calls: [], async invoke() { this.calls.push({}); throw new Error('boom'); } };
+  const cursor = fakeAdapter('cursor');
+  await run(dir, { claude: fakeAdapter('claude'), gemini, cursor }, '@gemini then @cursor');
+  const t = readTranscript(dir);
+  assert.ok(t.some((m) => m.from === 'system' && /gemini offline/.test(m.text)));
+  assert.equal(cursor.calls.length, 1); // queue continued despite the throw
+  const s = loadState(dir, ROSTER);
+  assert.equal(s.agents.gemini.cursor, 0); // failed agent saw nothing
+});
+
 test('failure = absence: system message recorded, cursor not advanced, round continues', async () => {
   const dir = tmpDir();
   const gemini = fakeAdapter('gemini', [{ ok: false, error: 'exit 1', stderr: 'boom' }]);
