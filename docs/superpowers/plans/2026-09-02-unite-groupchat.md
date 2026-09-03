@@ -20,8 +20,8 @@
 - stdout and stderr are NEVER merged; reply JSON is parsed only via `extractJson()` (outermost-brace scan).
 - Message shape everywhere: `{ts: string(ISO-8601), from: 'ted'|'claude'|'gemini'|'cursor'|'system', text: string, mentions: string[]}`.
 - State shape everywhere: `{agents: {<seat>: {sessionRef: string|null, cursor: number}}}` — `cursor` = count of transcript messages that seat has seen.
-- Every commit message ends with one `Co-Authored-By:` trailer per agent that actually wrote part of the change, naming the real model (per Ted's global protocol). An executor running as Claude Fable 5 uses:
-  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`
+- Every commit message ends with one `Co-Authored-By:` trailer per agent that actually wrote part of the change, naming the real model with its brand-mark emoji (per Ted's global protocol). An executor running as Claude Fable 5 uses:
+  `Co-Authored-By: ✳️ Claude Fable 5 <noreply@anthropic.com>`
 
 ---
 
