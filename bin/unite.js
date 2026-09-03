@@ -17,6 +17,13 @@ const config = loadConfig(root);
 const ui = makeUi();
 
 const FACTORIES = { claude: claudeAdapter, gemini: agyAdapter, cursor: cursorAdapter };
+const VALID_SEATS = Object.keys(FACTORIES);
+for (const seat of config.roster) {
+  if (!FACTORIES[seat]) {
+    console.error(`unknown seat "${seat}" in config roster; valid seats: ${VALID_SEATS.join(', ')}`);
+    process.exit(1);
+  }
+}
 const adapters = Object.fromEntries(config.roster.map((seat) => [seat, FACTORIES[seat]({
   binary: config.binaries[seat],
   model: config.models[seat],
