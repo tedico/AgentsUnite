@@ -10,7 +10,7 @@ test('first turn: plan mode, json output, prompt as trailing positional', async 
   const res = await a.invoke({ prompt: 'THE DELTA', sessionRef: null });
   assert.deepEqual(res, { ok: true, replyText: 'cursor here', sessionRef: 'chat-7' });
   assert.deepEqual(readStubCall().argv,
-    ['-p', '--mode', 'plan', '--output-format', 'json', '--', 'THE DELTA']);
+    ['-p', '--trust', '--mode', 'plan', '--output-format', 'json', '--', 'THE DELTA']);
 });
 
 test('later turn adds --resume; tolerates alternate JSON field names', async () => {
@@ -20,7 +20,7 @@ test('later turn adds --resume; tolerates alternate JSON field names', async () 
   const res = await a.invoke({ prompt: 'x', sessionRef: 'chat-7' });
   assert.deepEqual(res, { ok: true, replyText: 'alt fields', sessionRef: 'chat-7' });
   assert.deepEqual(readStubCall().argv,
-    ['-p', '--mode', 'plan', '--output-format', 'json', '--resume', 'chat-7', '--', 'x']);
+    ['-p', '--trust', '--mode', 'plan', '--output-format', 'json', '--resume', 'chat-7', '--', 'x']);
 });
 
 test('reply text missing entirely → bad json failure', async () => {
