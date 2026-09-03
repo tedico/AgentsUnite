@@ -126,7 +126,7 @@ already happened once — see below) touches config, not identity.
 |---|---|---|---|---|
 | claude | `claude` | `claude -p --permission-mode plan --output-format json` | + `--resume <session_id>` | `plan` mode |
 | gemini | `agy` | `agy --print "<delta>" --mode plan --output-format json` | + `--conversation <conversation_id>` | `plan` mode |
-| cursor | `cursor-agent` | `cursor-agent -p --mode plan --output-format json` | + `--resume <chatId>` | `--mode plan` |
+| cursor | `cursor-agent` | `cursor-agent -p --mode plan --output-format json --trust` | + `--resume <chatId>` | `--mode plan` |
 
 **The Gemini seat targets `agy` (Antigravity CLI), not `gemini`.** Verified
 2026-09-02: `@google/gemini-cli` v0.42.0 fails auth with `IneligibleTierError`
@@ -193,3 +193,10 @@ designed fallback):
   guarantee; the REPL already intercepts slash-prefixed input locally so no
   transcript line reaches agy starting with "/". Found by Antigravity's review
   (finding G2); reproduced by Claude before ruling.
+- 2026-09-03 — Amendment (live smoke, Task 12): cursor-agent print mode blocks on a
+  workspace-trust prompt in headless use; `--trust` added to the cursor adapter.
+  Read-only still enforced by `--mode plan`. Note for Ted: this auto-trusts
+  whatever project directory `unite` runs in, for cursor's headless calls only.
+  Cursor's print-mode JSON exposes the chat id as `session_id` (covered by the
+  adapter's existing fallback chain) — spike checklist fully resolved: all three
+  seats pass two-round live memory smoke.
