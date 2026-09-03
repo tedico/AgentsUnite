@@ -10,13 +10,20 @@ import { claudeAdapter } from '../lib/adapters/claude.js';
 import { agyAdapter } from '../lib/adapters/agy.js';
 import { cursorAdapter } from '../lib/adapters/cursor.js';
 import { appendDigest } from '../lib/digest.js';
-import { readTranscript, lastError } from '../lib/transcript.js';
+import { readTranscript, lastError, appendRoundError } from '../lib/transcript.js';
 
 const root = process.cwd();
 const config = loadConfig(root);
 const ui = makeUi();
 
 const FACTORIES = { claude: claudeAdapter, gemini: agyAdapter, cursor: cursorAdapter };
+const VALID_SEATS = Object.keys(FACTORIES);
+for (const seat of config.roster) {
+  if (!FACTORIES[seat]) {
+    console.error(`unknown seat "${seat}" in config roster; valid seats: ${VALID_SEATS.join(', ')}`);
+    process.exit(1);
+  }
+}
 const adapters = Object.fromEntries(config.roster.map((seat) => [seat, FACTORIES[seat]({
   binary: config.binaries[seat],
   model: config.models[seat],
@@ -116,6 +123,7 @@ rl.on('line', async (line) => {
     // would otherwise escape this async event handler as a process-fatal
     // unhandled rejection, killing the whole session mid-chat.
     ui.printSystem(`(round failed: ${err?.message ?? err})`);
+    appendRoundError(dir, err);
   } finally {
     activeControl = null;
     rl.prompt();

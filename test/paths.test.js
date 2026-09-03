@@ -38,3 +38,19 @@ test('listChats orders by transcript mtime, latestChat picks first', () => {
   assert.equal(latestChat(root), 'newer');
   assert.equal(latestChat(tmpRoot()), null);
 });
+
+test('chatDir and ensureChat reject path traversal in the chat name', () => {
+  const root = tmpRoot();
+  const bad = '../../evil';
+  assert.throws(() => chatDir(root, bad), /invalid chat name "\.\.\/\.\.\/evil"/);
+  assert.throws(() => ensureChat(root, bad), /invalid chat name "\.\.\/\.\.\/evil"/);
+  assert.ok(!fs.existsSync(path.join(root, 'evil')));
+  assert.ok(!fs.existsSync(path.join(root, '.unite', 'chats', '..', '..', 'evil')));
+});
+
+test('legal dotted chat names are accepted', () => {
+  const root = tmpRoot();
+  const dir = ensureChat(root, 'notes.v1');
+  assert.equal(dir, path.join(root, '.unite', 'chats', 'notes.v1'));
+  assert.ok(fs.statSync(dir).isDirectory());
+});

@@ -53,6 +53,14 @@ test('garbage stdout is a bad-json failure, not a crash', async () => {
   assert.match(res.error, /json/i);
 });
 
+test('a leading JSON update notice does not shadow the result payload', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: `{"notice":"update available"}\n${OK_JSON}` });
+  const a = claudeAdapter({ binary: bin, timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.deepEqual(res, { ok: true, replyText: 'hello from claude', sessionRef: 'sess-123' });
+});
+
 test('missing binary is a failure result, not an exception', async () => {
   stubDir();
   const a = claudeAdapter({ binary: '/nope/claude', timeoutMs: 5000 });
