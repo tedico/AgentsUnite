@@ -10,7 +10,7 @@ test('first turn: plan mode, json output, prompt as trailing positional', async 
   const res = await a.invoke({ prompt: 'THE DELTA', sessionRef: null });
   assert.deepEqual(res, { ok: true, replyText: 'cursor here', sessionRef: 'chat-7' });
   assert.deepEqual(readStubCall().argv,
-    ['-p', '--mode', 'plan', '--output-format', 'json', 'THE DELTA']);
+    ['-p', '--mode', 'plan', '--output-format', 'json', '--', 'THE DELTA']);
 });
 
 test('later turn adds --resume; tolerates alternate JSON field names', async () => {
@@ -20,7 +20,7 @@ test('later turn adds --resume; tolerates alternate JSON field names', async () 
   const res = await a.invoke({ prompt: 'x', sessionRef: 'chat-7' });
   assert.deepEqual(res, { ok: true, replyText: 'alt fields', sessionRef: 'chat-7' });
   assert.deepEqual(readStubCall().argv,
-    ['-p', '--mode', 'plan', '--output-format', 'json', '--resume', 'chat-7', 'x']);
+    ['-p', '--mode', 'plan', '--output-format', 'json', '--resume', 'chat-7', '--', 'x']);
 });
 
 test('reply text missing entirely → bad json failure', async () => {
@@ -29,4 +29,14 @@ test('reply text missing entirely → bad json failure', async () => {
   const a = cursorAdapter({ binary: bin, timeoutMs: 5000 });
   const res = await a.invoke({ prompt: 'x', sessionRef: null });
   assert.equal(res.ok, false);
+});
+
+test('nonzero exit with sessionRef reports sessionLost for engine self-heal', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stderr: 'chat not found', code: 1 });
+  const a = cursorAdapter({ binary: bin, timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: 'chat-7' });
+  assert.equal(res.ok, false);
+  assert.equal(res.sessionLost, true);
+  assert.match(res.stderr, /chat not found/);
 });

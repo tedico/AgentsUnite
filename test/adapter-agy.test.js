@@ -5,7 +5,7 @@ import { makeStub, readStubCall, stubDir } from './helpers/stub.js';
 
 const OK_JSON = JSON.stringify({ conversation_id: 'conv-9', status: 'SUCCESS', response: 'gemini here' });
 
-test('first turn: prompt is the VALUE of --print (greedy-parse safe), plan mode, slash commands off', async () => {
+test('first turn: prompt is the VALUE of --print (greedy-parse safe), plan mode', async () => {
   const dir = stubDir();
   const bin = makeStub(dir, { stdout: OK_JSON, stderr: 'jetski: telemetry noise' });
   const a = agyAdapter({ binary: bin, timeoutMs: 5000 });
@@ -13,7 +13,7 @@ test('first turn: prompt is the VALUE of --print (greedy-parse safe), plan mode,
   assert.deepEqual(res, { ok: true, replyText: 'gemini here', sessionRef: 'conv-9' });
   const call = readStubCall();
   assert.deepEqual(call.argv,
-    ['--print', 'THE DELTA', '--mode', 'plan', '--output-format', 'json', '--disable-slash-commands']);
+    ['--print', 'THE DELTA', '--mode', 'plan', '--output-format', 'json']);
 });
 
 test('later turn adds --conversation', async () => {
@@ -22,7 +22,7 @@ test('later turn adds --conversation', async () => {
   const a = agyAdapter({ binary: bin, timeoutMs: 5000 });
   await a.invoke({ prompt: 'x', sessionRef: 'conv-9' });
   assert.deepEqual(readStubCall().argv,
-    ['--print', 'x', '--mode', 'plan', '--output-format', 'json', '--disable-slash-commands', '--conversation', 'conv-9']);
+    ['--print', 'x', '--mode', 'plan', '--output-format', 'json', '--conversation', 'conv-9']);
 });
 
 test('failure shapes: nonzero exit w/ session → sessionLost; garbage json → bad json', async () => {

@@ -43,3 +43,7 @@ test('extractJson pulls outermost object from noisy output', () => {
   assert.equal(extractJson('no json here'), null);
   assert.equal(extractJson('{"truncated": '), null);
 });
+
+test('extractJson skips non-JSON braces and tries next candidate', () => {
+  assert.deepEqual(extractJson('[info {init: true}]\n{"ok": true}'), { ok: true });
+});
