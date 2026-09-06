@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runHeadless, extractJson } from '../lib/proc.js';
+import { runHeadless, extractJson, makeLineSplitter } from '../lib/proc.js';
 
 test('captures stdout and stderr separately with exit code', async () => {
   const r = await runHeadless({
@@ -84,4 +84,35 @@ test('extractJson requiredKeys is any-of: one listed key is enough', () => {
     extractJson(text, ['result', 'response', 'text']),
     { text: 'from cursor', chatId: 'c1' },
   );
+});
+
+test('onData fires per chunk with the stream name, before close', async () => {
+  const chunks = [];
+  const r = await runHeadless({
+    cmd: process.execPath,
+    args: ['-e', 'process.stdout.write("one\\n"); setTimeout(() => { process.stderr.write("err"); process.stdout.write("two\\n"); }, 50)'],
+    onData: (chunk, stream) => chunks.push([stream, chunk]),
+  });
+  assert.equal(r.stdout, 'one\ntwo\n');
+  assert.equal(r.stderr, 'err');
+  assert.deepEqual(chunks[0], ['stdout', 'one\n']);
+  assert.ok(chunks.some(([s, c]) => s === 'stderr' && c === 'err'));
+  assert.ok(chunks.some(([s, c]) => s === 'stdout' && c === 'two\n'));
+});
+
+test('runHeadless without onData still works', async () => {
+  const r = await runHeadless({ cmd: process.execPath, args: ['-e', 'process.stdout.write("ok")'] });
+  assert.equal(r.stdout, 'ok');
+});
+
+test('makeLineSplitter reassembles lines across chunk boundaries and flushes the tail', () => {
+  const lines = [];
+  const s = makeLineSplitter((l) => lines.push(l));
+  s.push('{"a":1}\n{"b"');
+  s.push(':2}\n\n{"c":3}');
+  assert.deepEqual(lines, ['{"a":1}', '{"b":2}']);
+  s.flush();
+  assert.deepEqual(lines, ['{"a":1}', '{"b":2}', '{"c":3}']);
+  s.flush(); // idempotent: nothing buffered, nothing emitted
+  assert.equal(lines.length, 3);
 });
