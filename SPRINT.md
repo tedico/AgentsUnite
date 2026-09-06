@@ -8,13 +8,14 @@
 - [x] Phase 4 — Room /plan mode + turn visibility: read-only tool policy, stream-json status line, honest ^C, /plan routing, MCP-off Claude seat, burst-merged input. Accepted 2026-09-06: six end-to-end checks pass on the AgentsUniteDesktop room (board post).
 
 ## Current phase
-Phase 4 — accepted; one gated task (plan Task 10, cooked-mode input) waits on the dictation spike
+Phase 4 — accepted and documented (instruction page v0.2.0 in repo, drift test). Next phase not started; the next spec is written from a recorded real session.
 
 ## Next
-Ted runs the dictation spike → decide plan Task 10. Follow-up spec now covers four items: quoted @all chains a hand-off; a ^C'd request is replayed next turn; the unproven→now-characterized plan-mode write path (finding F-PM1: model-enforced, wants a hard backstop for Bash-holding seats); and a TOOL_POLICY sentence steering seats to file-read tools over shell.
+Ted prints the v0.2.0 instruction page, then runs a real AgentsUniteDesktop session under `script` recording with Claude watching live. Findings from that recording → decide plan Task 10 and write the follow-up spec (quoted @all hand-off, ^C replay, F-PM1 hard backstop, TOOL_POLICY read-tool steer, events journal / `unite report`).
 
 ## Human
-- Dictation spike (Change 6): run `node scripts/dictation-spike.mjs` in a terminal, dictate one long sentence with a spoken correction, press Ctrl-C, paste the output on the board. Decides whether plan Task 10 (`terminal: false` input) is needed. Look for: BACKSPACE bursts, CURSOR-MOVE, PASTE-START.
+- Print `docs/instructions/AgentsUnite-Instructions.pdf` (v0.2.0) — also sent to you directly. Keep it by the keyboard for the monitored session.
+- Start the next real AgentsUniteDesktop session with the record command on the instruction page (`script -q -k -F .unite/sessions/<ts>.log unite`) and tell Claude to watch. Replaces the dictation spike: real dictation into unite captures the same bytes in context.
 - (done 2026-09-06) Live plan-mode write test run — see board finding F-PM1: the Claude seat read-only guarantee is model-enforced, not a hard gate.
 - Decide /who liveness: implement a liveness marker or amend the spec wording (final review #10)
 - Acknowledge: cursor seat runs with --trust (auto-trusts the project dir for headless cursor calls; read-only still enforced by --mode plan)

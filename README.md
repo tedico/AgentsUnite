@@ -91,9 +91,18 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
   `✳️ Claude …`, `✦ Gemini (Antigravity) …`, `🤖 Cursor Agent 🤖 …`.
 - Project state: `SPRINT.md` (phases, Next, Human items). History and design:
   `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+- **Instruction page rule:** `docs/instructions/AgentsUnite-Instructions.html` is
+  the printable one-pager (PDF beside it). Every upgrade that changes what a
+  user types, sees, or configures updates the page in the same PR, bumps the
+  version in `package.json` and the page footer together, and re-exports with
+  `scripts/build-instructions.sh`. `test/instructions.test.js` fails the suite
+  when commands, config keys, key messages, or the version drift.
 
 ## Troubleshooting
 
+- Record a real session for review (keystrokes + screen, stays in the
+  gitignored `.unite/`): `mkdir -p .unite/sessions && script -q -k -F
+  .unite/sessions/$(date +%Y%m%d-%H%M%S).log unite`
 - A seat prints `[offline: exit 1 — /last-error for details]` → `/last-error`.
 - `unknown seat "<x>" in config roster` → fix `.unite/config.json`.
 - A seat prints `[skipped by Ted (^C)]` → you pressed Ctrl-C; nothing is wrong.
