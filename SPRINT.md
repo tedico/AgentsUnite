@@ -14,6 +14,7 @@ Phase 4 — spec approved, spikes run, implementation plan written (2026-09-06);
 Execute `docs/superpowers/plans/2026-09-06-room-plan-mode-and-turn-visibility.md` Tasks 1–9 and 11 (Task 10 is gated on the dictation spike below). Default lane per the board: Cursor implements, Antigravity reviews, Claude adjudicates and gates the merge.
 
 ## Human
+- Push `main` (spec, plan, board sync — local is 3 commits ahead of origin) before Cursor opens the Phase 4 PR; then kick Cursor and Antigravity with "check the board"
 - Run a real `unite` planning session and judge the UX (via `/plan` once Phase 4 lands)
 - Decide /who liveness: implement a liveness marker or amend the spec wording (final review #10)
 - Acknowledge: cursor seat runs with --trust (auto-trusts the project dir for headless cursor calls; read-only still enforced by --mode plan)
