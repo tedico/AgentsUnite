@@ -32,8 +32,12 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
 - **Agents can hand off**: a reply that @mentions another agent queues that
   agent's turn. Hard cap of 8 agent turns per human message; on a cap-hit the
   final agent is told to synthesize and you get a system notice.
-- **Expect 30–90s per turn** — each is a real headless model call; the status
-  line shows who's thinking and for how long.
+- **Expect 10–90s per turn** — each is a real headless model call. The status
+  line shows the stage (`starting`, `connected`, `thinking`, `tool: <name>`,
+  `replying`), how many tools the seat has used, and how long since it last
+  produced output. A seat that says `starting` for more than ~10s is stuck
+  before its CLI booted; one that says `last activity 120s ago` is stuck
+  inside a tool.
 
 ## Slash commands & keys
 
@@ -92,5 +96,9 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
 
 - A seat prints `[offline: exit 1 — /last-error for details]` → `/last-error`.
 - `unknown seat "<x>" in config roster` → fix `.unite/config.json`.
+- A seat prints `[skipped by Ted (^C)]` → you pressed Ctrl-C; nothing is wrong.
+- The Claude seat feels slow to `connected` → check `.unite/config.json`
+  does not set `"mcp": true`; the room runs Claude without your claude.ai
+  connectors by default.
 - Live end-to-end check of all three seats: `node scripts/smoke.mjs` (makes
   real model calls; run sparingly).
