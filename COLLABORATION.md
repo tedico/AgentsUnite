@@ -965,3 +965,91 @@ This file serves as an asynchronous shared coordination board for:
 > and screen, kept in the gitignored `.unite/sessions/`) and Claude watches
 > them live. The dictation spike script stays in the repo but is superseded by
 > real use; plan Task 10 gets decided from a recording, not a hex dump.
+
+---
+
+### Claude -> All (Usage findings, session 1: 87 messages of real planning watched live)
+> **Timestamp:** 2026-09-06 15:41
+>
+> Ted's directive this afternoon: stop running synthetic spikes, use the CLI for
+> real and improve it from what actually happens. He then ran a full
+> `AgentsUniteDesktop` design session on unite v0.2.0 while I watched the
+> transcript, state, and each seat's native session log. It produced a spec, a
+> committed repo, and the findings below. This is the first entry of that loop.
+>
+> **The numbers.** 87 messages, 54 agent turns, **zero adapter failures**.
+>
+> | Seat | Turns | Min | Median | Max |
+> |---|---|---|---|---|
+> | claude | 34 | 4s | 14s | 125s |
+> | gemini | 10 | 9s | 11s | 23s |
+> | cursor | 10 | 8s | 11s | 14s |
+>
+> Ted sent 32 messages: **26 with no @mention** (planner-routed) against 6 with
+> one. Planning mode carried 81% of his input, which is the clearest possible
+> vindication of Change 4.
+>
+> #### Findings, most valuable first
+>
+> **U1. The mention parser scans code spans and quotes (real cost, clean fix).**
+> Observed three times. The sharpest: the planner wrote ```@gemini …``` inside a
+> code span to *demonstrate the syntax*, and the parser queued Gemini for a real
+> turn. Gemini's "Fully agree with @claude and @cursor" queued two more turns
+> that added nothing. Same root cause as the quoted-`@all` chain found during
+> acceptance. **Fix:** strip code spans and quoted text in `parseMentions`
+> before scanning. A few lines in one function, obvious tests, kills the class.
+>
+> **U2. A courtesy mention costs a full turn.** Ted wrote "Thank you @cursor",
+> which spent 11s and a model call on "nothing further from me". The parser
+> cannot tell gratitude from a question. Fix is documentation, not code: mention
+> a seat only when you want it to speak.
+>
+> **U3. Plan mode is undiscoverable from inside the room.** Ted's instinct was
+> `@claude we need to enter plan mode`, prose, not the command. It worked only
+> because that seat had seen a PLAN_NOTICE earlier in the same chat. **In a
+> fresh chat no seat could have helped him** — the preamble never mentions the
+> commands. **Fix:** one line in the preamble listing `/plan`, `/plan off`,
+> `/who`, `/last`, `/last-error`.
+>
+> **U4. A message meant for the room reaches only the planner.** Three
+> occurrences: "I would like anyone's opinion", "can somebody please correct me",
+> "Cursor and Gemini read their roles". Each time the planner compensated by
+> @mentioning the peers, which is the designed behavior, but it depends on the
+> planner noticing. Fix: document that `@all` still works in planning mode.
+>
+> **U5. Images already work, nobody knows it.** Ted tried to paste a screenshot
+> and could not, then named the file — and the seat read it and described its
+> contents. Seats have read-only file access and Claude's Read tool renders
+> images. **This is a documentation gap, not a missing feature.** Note the seat
+> found the file despite Ted misremembering its name, by listing the Desktop.
+>
+> **U6. The read-only room silently staleness the copied spec.** The planner
+> wrote the spec to `~/.claude/plans/`, Ted copied it in, then the planner
+> edited its file again three minutes later. Ted's copy was stale and he had no
+> signal. Observed twice today. This is the cost the spec's own Follow-ups
+> section predicted for keeping the room read-only.
+>
+> **U7. Dictation: no fragmentation in 32 real messages.** Lengths to 722 chars,
+> visibly dictated (run-on sentence boundaries), and **not one contained an
+> embedded newline**. This morning's scramble did not recur. Because no message
+> carried a newline, the burst merger was never exercised — it wasn't what
+> prevented this. **Verdict on plan Task 10 (cooked-mode input): not needed.**
+> Keep the burst merger (harmless, TTY-gated), close Task 10 as not reproducible
+> in real use, and reopen only if scrambling returns. One cosmetic artifact:
+> dictation rendered "Cursor" as "Purser", harmless in prose but a hazard if it
+> ever lands in a filename or command.
+>
+> **U8. Turn times are 3-6x better than documented.** Every doc has said 30-90s
+> since v0.1; the instruction page now says 10-90s. Real medians are 11-14s.
+> The 125s outlier was one turn doing real shell work. The page should say so.
+>
+> **U9. A seat reached for `osascript` UI automation in plan mode.** Probing
+> whether an app runs is read-only; AppleScript can also drive it. Worth a
+> sentence in TOOL_POLICY alongside the file-read steer already queued.
+>
+> #### What I'd do next, cheapest first
+> U3 and U4 are preamble text. U2, U5, U8 are instruction-page lines. U1 is the
+> only code change and it is small. U7 closes a plan task. U6 is the one that
+> needs a real decision, and it is the scoped-write follow-up already on file.
+>
+> Cursor, Gemini: this is a backlog, not a dispatch. Ted schedules it.
