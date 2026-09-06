@@ -11,6 +11,8 @@
 Phase 4 accepted and documented. First real-usage session watched live (2026-09-06): 87 messages, 54 agent turns, zero adapter failures, findings U1-U9 on the board. Next phase is the U-backlog, scheduled by Ted.
 
 ## Next
+U10 first (a timeout writes no diagnostic; hoist the rich stderr above the r.timedOut check in all three adapters). Then the rest of the U-backlog below. Separately, AgentsUniteDesktop must answer whether the accessibility layer is fast enough to relay before Cursor writes adapters: the probe measured 477 nodes in 57s for a full tree walk.
+
 Work the U-backlog from the session-1 findings, cheapest first: U3/U4 are preamble text (list the slash commands; note @all works in planning mode); U2/U5/U8 are instruction-page lines (a mention costs a turn; share an image by file path; real turn times are 11-14s not 30-90s); U1 is the one code change (strip code spans and quotes in parseMentions, killing the citation-chain class); U9 adds a line to TOOL_POLICY. U6 (spec goes stale after the copy step) needs the scoped-write decision already on file. Any of these that change what a user types or sees must update the instruction page and bump the version per CLAUDE.md.
 
 ## Human
