@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runRound, RoundControl } from '../lib/engine.js';
-import { readTranscript, loadState } from '../lib/transcript.js';
-import { BUDGET_NOTICE } from '../lib/deltas.js';
+import { runRound, RoundControl, applyPolicyNotice } from '../lib/engine.js';
+import { readTranscript, loadState, appendMessage } from '../lib/transcript.js';
+import { BUDGET_NOTICE, POLICY_NOTICE } from '../lib/deltas.js';
 
 const CONFIG = { roster: ['claude', 'gemini', 'cursor'], turnCap: 8, timeoutMs: 1000, binaries: {}, models: {} };
 const noStatus = () => ({ update() {}, stop() {} });
@@ -249,4 +249,34 @@ test('adapter progress events reach the status line and never the transcript', a
   await runRound({ humanText: '@claude go', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
   assert.deepEqual(seen.map((e) => e.phase), ['connected', 'tool: Read']);
   assert.ok(!JSON.stringify(readTranscript(dir)).includes('tool: Read'));
+});
+
+test('applyPolicyNotice: an existing chat gets exactly one notice across two starts', () => {
+  const dir = tmpDir();
+  appendMessage(dir, { ts: 't0', from: 'ted', text: 'hi @claude', mentions: ['claude'] });
+  assert.equal(applyPolicyNotice(dir, ROSTER), true);
+  assert.equal(applyPolicyNotice(dir, ROSTER), false);
+  const notices = readTranscript(dir).filter((m) => m.from === 'system' && m.text === POLICY_NOTICE);
+  assert.equal(notices.length, 1);
+  assert.deepEqual(notices[0].mentions, []);
+  assert.equal(loadState(dir, ROSTER).policyVersion, 2);
+});
+
+test('applyPolicyNotice: a fresh chat is stamped without a notice (its preamble already carries the policy)', () => {
+  const dir = tmpDir();
+  assert.equal(applyPolicyNotice(dir, ROSTER), false);
+  assert.deepEqual(readTranscript(dir), []);
+  assert.equal(loadState(dir, ROSTER).policyVersion, 2);
+});
+
+test('the policy notice reaches a seat in its next delta', async () => {
+  const dir = tmpDir();
+  appendMessage(dir, { ts: 't0', from: 'ted', text: 'earlier @claude', mentions: ['claude'] });
+  fs.writeFileSync(path.join(dir, 'state.json'),
+    JSON.stringify({ agents: { claude: { sessionRef: 's-old', cursor: 1 } } }));
+  applyPolicyNotice(dir, ROSTER);
+  const claude = fakeAdapter('claude');
+  await run(dir, { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, '@claude again');
+  assert.match(claude.calls[0].prompt, /\[System\]: Policy update:/);
+  assert.ok(!claude.calls[0].prompt.includes('You are Claude')); // not a first turn
 });

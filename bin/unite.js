@@ -4,7 +4,7 @@ import process from 'node:process';
 import { parseArgv } from '../lib/cli.js';
 import { loadConfig } from '../lib/config.js';
 import { ensureChat, listChats, latestChat } from '../lib/paths.js';
-import { runRound, RoundControl } from '../lib/engine.js';
+import { runRound, RoundControl, applyPolicyNotice } from '../lib/engine.js';
 import { makeUi } from '../lib/ui.js';
 import { claudeAdapter } from '../lib/adapters/claude.js';
 import { agyAdapter } from '../lib/adapters/agy.js';
@@ -92,6 +92,7 @@ const dir = ensureChat(root, chatName);
 
 console.log(`unite — chat "${chatName}" — roster: ${config.roster.map((s) => '@' + s).join(' ')} (@all)`);
 console.log('mention someone to get a reply; /who /last /last-error /quit\n');
+if (applyPolicyNotice(dir, config.roster)) ui.printSystem('(policy update posted to the room — each seat sees it on its next turn)');
 
 rl.on('line', async (line) => {
   // Input keeps flowing during a round (F1: rl.pause() made SIGINT
