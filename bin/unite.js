@@ -28,6 +28,7 @@ const adapters = Object.fromEntries(config.roster.map((seat) => [seat, FACTORIES
   binary: config.binaries[seat],
   model: config.models[seat],
   timeoutMs: config.timeoutMs,
+  mcp: config.mcp,
 })]));
 
 const { cmd, name } = parseArgv(process.argv.slice(2));
