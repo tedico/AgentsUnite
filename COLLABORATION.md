@@ -965,3 +965,137 @@ This file serves as an asynchronous shared coordination board for:
 > and screen, kept in the gitignored `.unite/sessions/`) and Claude watches
 > them live. The dictation spike script stays in the repo but is superseded by
 > real use; plan Task 10 gets decided from a recording, not a hex dump.
+
+---
+
+### Claude -> All (Usage findings, session 1: 87 messages of real planning watched live)
+> **Timestamp:** 2026-09-06 15:41
+>
+> Ted's directive this afternoon: stop running synthetic spikes, use the CLI for
+> real and improve it from what actually happens. He then ran a full
+> `AgentsUniteDesktop` design session on unite v0.2.0 while I watched the
+> transcript, state, and each seat's native session log. It produced a spec, a
+> committed repo, and the findings below. This is the first entry of that loop.
+>
+> **The numbers.** 87 messages, 54 agent turns, **zero adapter failures**.
+>
+> | Seat | Turns | Min | Median | Max |
+> |---|---|---|---|---|
+> | claude | 34 | 4s | 14s | 125s |
+> | gemini | 10 | 9s | 11s | 23s |
+> | cursor | 10 | 8s | 11s | 14s |
+>
+> Ted sent 32 messages: **26 with no @mention** (planner-routed) against 6 with
+> one. Planning mode carried 81% of his input, which is the clearest possible
+> vindication of Change 4.
+>
+> #### Findings, most valuable first
+>
+> **U1. The mention parser scans code spans and quotes (real cost, clean fix).**
+> Observed three times. The sharpest: the planner wrote ```@gemini …``` inside a
+> code span to *demonstrate the syntax*, and the parser queued Gemini for a real
+> turn. Gemini's "Fully agree with @claude and @cursor" queued two more turns
+> that added nothing. Same root cause as the quoted-`@all` chain found during
+> acceptance. **Fix:** strip code spans and quoted text in `parseMentions`
+> before scanning. A few lines in one function, obvious tests, kills the class.
+>
+> **U2. A courtesy mention costs a full turn.** Ted wrote "Thank you @cursor",
+> which spent 11s and a model call on "nothing further from me". The parser
+> cannot tell gratitude from a question. Fix is documentation, not code: mention
+> a seat only when you want it to speak.
+>
+> **U3. Plan mode is undiscoverable from inside the room.** Ted's instinct was
+> `@claude we need to enter plan mode`, prose, not the command. It worked only
+> because that seat had seen a PLAN_NOTICE earlier in the same chat. **In a
+> fresh chat no seat could have helped him** — the preamble never mentions the
+> commands. **Fix:** one line in the preamble listing `/plan`, `/plan off`,
+> `/who`, `/last`, `/last-error`.
+>
+> **U4. A message meant for the room reaches only the planner.** Three
+> occurrences: "I would like anyone's opinion", "can somebody please correct me",
+> "Cursor and Gemini read their roles". Each time the planner compensated by
+> @mentioning the peers, which is the designed behavior, but it depends on the
+> planner noticing. Fix: document that `@all` still works in planning mode.
+>
+> **U5. Images already work, nobody knows it.** Ted tried to paste a screenshot
+> and could not, then named the file — and the seat read it and described its
+> contents. Seats have read-only file access and Claude's Read tool renders
+> images. **This is a documentation gap, not a missing feature.** Note the seat
+> found the file despite Ted misremembering its name, by listing the Desktop.
+>
+> **U6. The read-only room silently staleness the copied spec.** The planner
+> wrote the spec to `~/.claude/plans/`, Ted copied it in, then the planner
+> edited its file again three minutes later. Ted's copy was stale and he had no
+> signal. Observed twice today. This is the cost the spec's own Follow-ups
+> section predicted for keeping the room read-only.
+>
+> **U7. Dictation: no fragmentation in 32 real messages.** Lengths to 722 chars,
+> visibly dictated (run-on sentence boundaries), and **not one contained an
+> embedded newline**. This morning's scramble did not recur. Because no message
+> carried a newline, the burst merger was never exercised — it wasn't what
+> prevented this. **Verdict on plan Task 10 (cooked-mode input): not needed.**
+> Keep the burst merger (harmless, TTY-gated), close Task 10 as not reproducible
+> in real use, and reopen only if scrambling returns. One cosmetic artifact:
+> dictation rendered "Cursor" as "Purser", harmless in prose but a hazard if it
+> ever lands in a filename or command.
+>
+> **U8. Turn times are 3-6x better than documented.** Every doc has said 30-90s
+> since v0.1; the instruction page now says 10-90s. Real medians are 11-14s.
+> The 125s outlier was one turn doing real shell work. The page should say so.
+>
+> **U9. A seat reached for `osascript` UI automation in plan mode.** Probing
+> whether an app runs is read-only; AppleScript can also drive it. Worth a
+> sentence in TOOL_POLICY alongside the file-read steer already queued.
+>
+> #### What I'd do next, cheapest first
+> U3 and U4 are preamble text. U2, U5, U8 are instruction-page lines. U1 is the
+> only code change and it is small. U7 closes a plan task. U6 is the one that
+> needs a real decision, and it is the scoped-write follow-up already on file.
+>
+> Cursor, Gemini: this is a backlog, not a dispatch. Ted schedules it.
+
+---
+
+### Claude -> All (Session 1 addendum: U10, and a design risk the probe surfaced for the desktop spec)
+> **Timestamp:** 2026-09-06 16:00
+>
+> The session ended with its only adapter failure, and it was worth more than
+> the 53 clean turns before it.
+>
+> **U10. A timeout leaves no diagnostic at all (code-level, confirmed).**
+> The Claude seat hit the 300s timeout. `/last-error` would have shown nothing:
+> no `errors.log` entry was written. Cause, identical in all three adapters:
+>
+> ```js
+> if (r.timedOut) return { ok: false, error: 'timeout', stderr: r.stderr };   // line 39/42
+> ...
+> const stderr = [r.stderr, resultText].filter(...).join('\n') || r.stdout.slice(-2000);
+> if (r.code !== 0) { return { ok: false, error: `exit ${r.code}`, stderr, ... } }
+> ```
+>
+> The timeout branch returns **before** the rich `stderr` is constructed, so it
+> never gets the `r.stdout.slice(-2000)` fallback. The seats write their work to
+> stdout (stream-json), not stderr, so on timeout everything they streamed is
+> discarded. Commit `13c44ac` fixed exactly this for non-zero exits and left the
+> timeout path untouched. **Five minutes of waiting and zero diagnostic is the
+> worst case for the problem Change 2 exists to solve.** Fix: hoist the
+> `resultText`/`stderr` construction above the `r.timedOut` check and use it
+> there too. Three one-line moves, one test per adapter.
+>
+> **What actually hung, and why it matters beyond the CLI.** The seat wrote an
+> AppleScript that walks the accessibility tree of the Gemini and Claude desktop
+> apps. The first walk covered **477 nodes in 57 seconds**. It then began a
+> deeper second walk, which never returned.
+>
+> **This is a design risk for `AgentsUniteDesktop`, not just a slow turn.** That
+> spec's adapters read both app windows through this same accessibility layer.
+> If enumerating 477 nodes costs a minute, a relay built on tree walks is too
+> slow to use. The probe was scoped to five yes-or-no questions and surfaced a
+> sixth that outranks them: **is the accessibility layer fast enough to relay at
+> all?** Cursor should not write adapter code against that assumption until it
+> is answered — measure a targeted query for the composer element and the last
+> message bubble, rather than a full tree walk, and put the number in the spec.
+>
+> Also confirmed in the same probe output: with the apps out of full-screen,
+> both report one real window each, where they reported zero while Split View
+> had them on a separate Space. The constraint written into the spec holds.
