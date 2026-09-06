@@ -9,15 +9,26 @@ const config = loadConfig(process.cwd());
 const FACTORIES = { claude: claudeAdapter, gemini: agyAdapter, cursor: cursorAdapter };
 const seats = process.argv.slice(2).length ? process.argv.slice(2) : config.roster;
 
+const progress = () => {
+  const phases = [];
+  return {
+    phases,
+    onProgress: (e) => { if (phases.at(-1) !== e.phase) phases.push(e.phase); },
+  };
+};
+
 for (const seat of seats) {
-  const a = FACTORIES[seat]({ binary: config.binaries[seat], timeoutMs: config.timeoutMs });
+  const a = FACTORIES[seat]({ binary: config.binaries[seat], timeoutMs: config.timeoutMs, mcp: config.mcp });
   console.log(`\n=== ${seat} (${config.binaries[seat]}) ===`);
-  const r1 = await a.invoke({ prompt: 'Remember the codeword "walnut". Reply only: OK', sessionRef: null });
-  console.log('round 1:', r1.ok ? `OK (session ${r1.sessionRef})` : `FAIL: ${r1.error}\n${r1.stderr}`);
+  const p1 = progress();
+  const r1 = await a.invoke({ prompt: 'Remember the codeword "walnut". Reply only: OK', sessionRef: null, onProgress: p1.onProgress });
+  console.log('round 1:', r1.ok ? `OK (session ${r1.sessionRef})` : `FAIL: ${r1.error}\n${r1.stderr}`, '— phases:', p1.phases.join(' → '));
   if (!r1.ok) continue;
-  const r2 = await a.invoke({ prompt: 'What was the codeword? Reply with just it.', sessionRef: r1.sessionRef });
+  const p2 = progress();
+  const r2 = await a.invoke({ prompt: 'Read the file package.json here and reply with only its "name" value, then the codeword.', sessionRef: r1.sessionRef, onProgress: p2.onProgress });
   const remembered = r2.ok && /walnut/i.test(r2.replyText);
-  console.log('round 2 (resume):', r2.ok ? (remembered ? 'MEMORY OK' : `NO MEMORY — got: ${r2.replyText}`) : `FAIL: ${r2.error}\n${r2.stderr}`);
+  console.log('round 2 (resume + one tool):', r2.ok ? (remembered ? 'MEMORY OK' : `NO MEMORY — got: ${r2.replyText}`) : `FAIL: ${r2.error}\n${r2.stderr}`, '— phases:', p2.phases.join(' → '));
 }
 console.log('\nSpike checklist: round-2 MEMORY OK for gemini proves --conversation resume; ' +
-  'for cursor proves --resume + chat-id capture. Any FAIL: check errors above, adjust adapter, re-run.');
+  'for cursor proves --resume + session-id capture. A "tool: …" phase in round 2 proves live progress. ' +
+  'Any FAIL: check errors above, adjust adapter, re-run.');

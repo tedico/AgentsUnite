@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 import readline from 'node:readline';
 import process from 'node:process';
-import { parseArgv } from '../lib/cli.js';
+import { parseArgv, parsePlanCommand, PLAN_USAGE } from '../lib/cli.js';
 import { loadConfig } from '../lib/config.js';
 import { ensureChat, listChats, latestChat } from '../lib/paths.js';
-import { runRound, RoundControl } from '../lib/engine.js';
+import { runRound, RoundControl, applyPolicyNotice, endPlanning } from '../lib/engine.js';
 import { makeUi } from '../lib/ui.js';
 import { claudeAdapter } from '../lib/adapters/claude.js';
 import { agyAdapter } from '../lib/adapters/agy.js';
 import { cursorAdapter } from '../lib/adapters/cursor.js';
 import { appendDigest } from '../lib/digest.js';
-import { readTranscript, lastError, appendRoundError } from '../lib/transcript.js';
+import { readTranscript, lastError, appendRoundError, loadState } from '../lib/transcript.js';
+import { makeBurstMerger } from '../lib/burst.js';
 
 const root = process.cwd();
 const config = loadConfig(root);
@@ -28,6 +29,7 @@ const adapters = Object.fromEntries(config.roster.map((seat) => [seat, FACTORIES
   binary: config.binaries[seat],
   model: config.models[seat],
   timeoutMs: config.timeoutMs,
+  mcp: config.mcp,
 })]));
 
 const { cmd, name } = parseArgv(process.argv.slice(2));
@@ -90,9 +92,31 @@ if (cmd === 'new') {
 const dir = ensureChat(root, chatName);
 
 console.log(`unite — chat "${chatName}" — roster: ${config.roster.map((s) => '@' + s).join(' ')} (@all)`);
-console.log('mention someone to get a reply; /who /last /last-error /quit\n');
+console.log('mention someone to get a reply; /plan [@seat] <text> · /plan off · /who /last /last-error /quit\n');
+if (applyPolicyNotice(dir, config.roster)) ui.printSystem('(policy update posted to the room — each seat sees it on its next turn)');
+{
+  const planner = loadState(dir, config.roster).planner;
+  if (planner) ui.printSystem(`(planning mode is on — @${planner} drives; plain text goes to @${planner}; /plan off to end)`);
+}
 
-rl.on('line', async (line) => {
+async function startRound(extra) {
+  activeControl = new RoundControl();
+  sigints = 0;
+  try {
+    await runRound({ dir, adapters, config, ui, control: activeControl, ...extra });
+  } catch (err) {
+    // F5: an uncaught throw here (corrupt transcript line, disk full, etc.)
+    // would otherwise escape this async event handler as a process-fatal
+    // unhandled rejection, killing the whole session mid-chat.
+    ui.printSystem(`(round failed: ${err?.message ?? err})`);
+    appendRoundError(dir, err);
+  } finally {
+    activeControl = null;
+    rl.prompt();
+  }
+}
+
+async function handleInput(line) {
   // Input keeps flowing during a round (F1: rl.pause() made SIGINT
   // unreachable mid-round, since a paused stream can't process keypresses).
   // Lines that arrive while a round is in flight are dropped with a hint —
@@ -114,21 +138,34 @@ rl.on('line', async (line) => {
     ui.printSystem(lastError(dir) ?? '(no errors logged)');
     rl.prompt(); return;
   }
-  activeControl = new RoundControl();
-  sigints = 0;
-  try {
-    await runRound({ humanText: text, dir, adapters, config, ui, control: activeControl });
-  } catch (err) {
-    // F5: an uncaught throw here (corrupt transcript line, disk full, etc.)
-    // would otherwise escape this async event handler as a process-fatal
-    // unhandled rejection, killing the whole session mid-chat.
-    ui.printSystem(`(round failed: ${err?.message ?? err})`);
-    appendRoundError(dir, err);
-  } finally {
-    activeControl = null;
-    rl.prompt();
+  const plan = parsePlanCommand(text, config.roster);
+  if (plan) {
+    if (plan.kind === 'usage') { ui.printSystem(PLAN_USAGE); rl.prompt(); return; }
+    if (plan.kind === 'bad-seat') {
+      ui.printSystem(`unknown seat "@${plan.seat}" — roster: ${config.roster.map((s) => '@' + s).join(' ')}`);
+      rl.prompt(); return;
+    }
+    if (plan.kind === 'off') {
+      const was = endPlanning(dir, config.roster);
+      ui.printSystem(was ? `(planning mode ended — @${was} no longer receives un-mentioned messages)` : '(planning mode was not on)');
+      rl.prompt(); return;
+    }
+    const planner = plan.planner ?? config.planner;
+    if (!config.roster.includes(planner)) {
+      ui.printSystem(`planner "@${planner}" is not in the roster — use /plan @seat <text> or set "planner" in .unite/config.json`);
+      rl.prompt(); return;
+    }
+    ui.printSystem(`(planning mode: @${planner} drives; plain text goes to @${planner}; @mentions still work; /plan off to end)`);
+    await startRound({ humanText: plan.text, planStart: true, planner });
+    return;
   }
-});
+  await startRound({ humanText: text });
+}
+
+// Change 6: merge a burst of lines (dictation pauses, pastes) into one message.
+// Only on a TTY: piped stdin (tests, scripts) is line-oriented by nature and
+// must keep one 'line' = one input (test/cli.test.js pipes several lines at once).
+rl.on('line', process.stdin.isTTY ? makeBurstMerger(handleInput) : handleInput);
 
 rl.on('close', () => { console.log(); process.exit(0); });
 rl.prompt();

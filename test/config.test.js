@@ -32,3 +32,15 @@ test('roster is a fresh copy, not shared with DEFAULT_CONFIG', () => {
   cfg.roster.push('new-agent');
   assert.ok(!DEFAULT_CONFIG.roster.includes('new-agent'));
 });
+
+test('room defaults: MCP off for the claude seat, claude is the default planner', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'unite-cfg-'));
+  const cfg = loadConfig(root);
+  assert.equal(cfg.mcp, false);
+  assert.equal(cfg.planner, 'claude');
+  fs.mkdirSync(path.join(root, '.unite'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.unite', 'config.json'), JSON.stringify({ mcp: true, planner: 'gemini' }));
+  const over = loadConfig(root);
+  assert.equal(over.mcp, true);
+  assert.equal(over.planner, 'gemini');
+});

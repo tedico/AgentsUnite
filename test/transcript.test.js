@@ -46,3 +46,15 @@ test('appendRoundError writes the Error stack so lastError can surface it', () =
   assert.match(logged, /round exploded/);
   assert.match(logged, /^\s+at /m);
 });
+
+test('loadState defaults policyVersion to 1 and planner to null; both round-trip', () => {
+  const dir = tmpDir();
+  const s = loadState(dir, ROSTER);
+  assert.equal(s.policyVersion, 1);
+  assert.equal(s.planner, null);
+  s.policyVersion = 2; s.planner = 'claude';
+  saveState(dir, s);
+  const s2 = loadState(dir, ROSTER);
+  assert.equal(s2.policyVersion, 2);
+  assert.equal(s2.planner, 'claude');
+});
