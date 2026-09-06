@@ -8,7 +8,8 @@ import { readTranscript, loadState } from '../lib/transcript.js';
 import { BUDGET_NOTICE } from '../lib/deltas.js';
 
 const CONFIG = { roster: ['claude', 'gemini', 'cursor'], turnCap: 8, timeoutMs: 1000, binaries: {}, models: {} };
-const quietUi = { startStatus: () => () => {}, printReply: () => {}, printSystem: () => {} };
+const noStatus = () => ({ update() {}, stop() {} });
+const quietUi = { startStatus: noStatus, printReply: () => {}, printSystem: () => {} };
 const ROSTER = CONFIG.roster;
 
 function tmpDir() { return fs.mkdtempSync(path.join(os.tmpdir(), 'unite-eng-')); }
@@ -96,7 +97,7 @@ test('turn cap: printSystem notice fires when the final turn\'s reply is suppres
   const claude = loop('claude', 'gemini');
   const gemini = loop('gemini', 'claude');
   const systemMsgs = [];
-  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  const ui = { startStatus: noStatus, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
   await runRound({ humanText: '@claude start', dir, adapters: { claude, gemini, cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
   assert.ok(systemMsgs.some((m) => /turn budget \(8\) reached — back to you/.test(m)));
 });
@@ -104,7 +105,7 @@ test('turn cap: printSystem notice fires when the final turn\'s reply is suppres
 test('turn cap: no printSystem notice when the round ends naturally under the cap', async () => {
   const dir = tmpDir();
   const systemMsgs = [];
-  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  const ui = { startStatus: noStatus, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
   // default reply mentions nobody, so the round ends naturally after 1 turn, well under the cap.
   const claude = fakeAdapter('claude');
   await runRound({ humanText: '@claude hi', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
@@ -163,7 +164,7 @@ test('prompt-building throw still stops the spinner via finally (F5)', async () 
   let started = 0;
   let stopped = 0;
   const ui = {
-    startStatus: () => { started++; return () => { stopped++; }; },
+    startStatus: () => { started++; return { update() {}, stop() { stopped++; } }; },
     printReply: () => {},
     printSystem: () => {},
   };
@@ -190,7 +191,7 @@ test('drain() stops the queue', async () => {
 test('ok reply with no sessionRef prints a system warning', async () => {
   const dir = tmpDir();
   const systemMsgs = [];
-  const ui = { startStatus: () => () => {}, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  const ui = { startStatus: noStatus, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
   const claude = fakeAdapter('claude', [{ ok: true, replyText: 'hi', sessionRef: null }]);
   await runRound({
     humanText: '@claude go', dir,
@@ -200,4 +201,52 @@ test('ok reply with no sessionRef prints a system warning', async () => {
   assert.ok(systemMsgs.some((m) => /@claude/.test(m) && /session ref/i.test(m)));
   const s = loadState(dir, ROSTER);
   assert.equal(s.agents.claude.sessionRef, null);
+});
+
+test('a turn aborted by ^C records "skipped by Ted (^C)", never "offline"', async () => {
+  const dir = tmpDir();
+  const control = new RoundControl();
+  const claude = {
+    seat: 'claude',
+    async invoke({ signal }) {
+      control.skipTurn(); // what bin/unite.js does on the first ^C
+      assert.equal(signal.aborted, true);
+      return { ok: false, error: 'exit 137', stderr: 'killed' };
+    },
+  };
+  const systemMsgs = [];
+  const ui = { startStatus: noStatus, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  await runRound({ humanText: '@claude go', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control });
+  const t = readTranscript(dir);
+  assert.ok(t.some((m) => m.from === 'system' && m.text === '@claude skipped by Ted (^C)'));
+  assert.ok(!t.some((m) => /offline/.test(m.text)));
+  assert.ok(systemMsgs.includes('claude> [skipped by Ted (^C)]'));
+  assert.equal(loadState(dir, ROSTER).agents.claude.cursor, 0); // skipped seat saw nothing
+});
+
+test('a non-zero exit still records "offline: exit N"', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude', [{ ok: false, error: 'exit 2', stderr: 'boom' }]);
+  const systemMsgs = [];
+  const ui = { startStatus: noStatus, printReply: () => {}, printSystem: (t) => systemMsgs.push(t) };
+  await runRound({ humanText: '@claude go', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
+  assert.ok(readTranscript(dir).some((m) => m.text === '@claude offline: exit 2'));
+  assert.ok(systemMsgs.some((m) => /claude> \[offline: exit 2/.test(m)));
+});
+
+test('adapter progress events reach the status line and never the transcript', async () => {
+  const dir = tmpDir();
+  const seen = [];
+  const ui = { startStatus: () => ({ update: (e) => seen.push(e), stop() {} }), printReply: () => {}, printSystem: () => {} };
+  const claude = {
+    seat: 'claude',
+    async invoke({ onProgress }) {
+      onProgress({ ts: 1, phase: 'connected' });
+      onProgress({ ts: 2, phase: 'tool: Read', lastTool: 'Read', toolCount: 1 });
+      return { ok: true, replyText: 'hi', sessionRef: 's' };
+    },
+  };
+  await runRound({ humanText: '@claude go', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: CONFIG, ui, control: new RoundControl() });
+  assert.deepEqual(seen.map((e) => e.phase), ['connected', 'tool: Read']);
+  assert.ok(!JSON.stringify(readTranscript(dir)).includes('tool: Read'));
 });
