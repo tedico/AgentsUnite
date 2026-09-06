@@ -83,6 +83,33 @@ test('nonzero exit with sessionRef reports sessionLost for engine self-heal', as
   assert.match(res.stderr, /chat not found/);
 });
 
+test('nonzero stream-json result preserves its stdout diagnostic', async () => {
+  const dir = stubDir();
+  const diagnostic = 'Cursor request limit reached; try again later';
+  const stdout = `${JSON.stringify({ type: 'result', is_error: true, result: diagnostic })}\n`;
+  const a = cursorAdapter({ binary: makeStub(dir, { stdout, code: 1 }), timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /request limit/);
+});
+
+test('empty result is an empty-reply failure', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"type":"result","is_error":false,"result":""}\n' });
+  const res = await cursorAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /empty/i);
+});
+
+test('is_error result is a failure, not a reply', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"type":"result","is_error":true,"result":"authentication expired"}\n' });
+  const res = await cursorAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /authentication expired/);
+  assert.equal('replyText' in res, false);
+});
+
 test('a leading JSON update notice does not shadow the payload', async () => {
   const dir = stubDir();
   const bin = makeStub(dir, { stdout: `{"notice":"update available"}\n${STREAM}` });

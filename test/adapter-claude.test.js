@@ -85,6 +85,33 @@ test('nonzero exit without sessionRef is a plain failure', async () => {
   assert.deepEqual({ ok: res.ok, sessionLost: res.sessionLost ?? false }, { ok: false, sessionLost: false });
 });
 
+test('nonzero stream-json result preserves its stdout diagnostic', async () => {
+  const dir = stubDir();
+  const diagnostic = "You've hit your session limit · resets 1:10pm";
+  const stdout = `${JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: diagnostic })}\n`;
+  const a = claudeAdapter({ binary: makeStub(dir, { stdout, code: 1 }), timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /session limit/);
+});
+
+test('empty result is an empty-reply failure', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"type":"result","subtype":"success","is_error":false,"result":""}\n' });
+  const res = await claudeAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /empty/i);
+});
+
+test('is_error result is a failure, not a reply', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"type":"result","subtype":"success","is_error":true,"result":"rate limited"}\n' });
+  const res = await claudeAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /rate limited/);
+  assert.equal('replyText' in res, false);
+});
+
 test('garbage stdout is a bad-json failure, not a crash', async () => {
   const dir = stubDir();
   const bin = makeStub(dir, { stdout: 'I am not JSON' });

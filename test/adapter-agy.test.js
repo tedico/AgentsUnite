@@ -71,6 +71,33 @@ test('failure shapes: nonzero exit w/ session → sessionLost; garbage json → 
   assert.match(r2.error, /json/i);
 });
 
+test('nonzero stream-json result preserves its stdout diagnostic', async () => {
+  const dir = stubDir();
+  const diagnostic = 'Gemini API quota exhausted; retry later';
+  const stdout = `${JSON.stringify({ event: 'result', result: { status: 'ERROR', response: diagnostic } })}\n`;
+  const a = agyAdapter({ binary: makeStub(dir, { stdout, code: 1 }), timeoutMs: 5000 });
+  const res = await a.invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /quota exhausted/);
+});
+
+test('empty result response is an empty-reply failure', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"event":"result","result":{"status":"SUCCESS","response":""}}\n' });
+  const res = await agyAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /empty/i);
+});
+
+test('is_error result is a failure, not a reply', async () => {
+  const dir = stubDir();
+  const bin = makeStub(dir, { stdout: '{"event":"result","result":{"is_error":true,"response":"service unavailable"}}\n' });
+  const res = await agyAdapter({ binary: bin, timeoutMs: 5000 }).invoke({ prompt: 'x', sessionRef: null });
+  assert.equal(res.ok, false);
+  assert.match(res.stderr, /service unavailable/);
+  assert.equal('replyText' in res, false);
+});
+
 test('a leading JSON update notice does not shadow the response payload', async () => {
   const dir = stubDir();
   const bin = makeStub(dir, { stdout: `{"notice":"update available"}\n${STREAM}` });
