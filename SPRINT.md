@@ -14,8 +14,8 @@ Phase 4 — complete; awaiting Ted's acceptance run of the six end-to-end checks
 Ted runs the dictation spike (Human item) → decide Task 10; then acceptance run of /plan in AgentsUniteDesktop.
 
 ## Human
-- Push `main` (spec, plan, board sync — local is 3 commits ahead of origin) before Cursor opens the Phase 4 PR; then kick Cursor and Antigravity with "check the board"
-- Run a real `unite` planning session and judge the UX (via `/plan` once Phase 4 lands)
+- Acceptance: run the six end-to-end checks from PR #5's body (`/plan build a widget` → answer in plain text; one file read shows `tool: Read`; Ctrl-C says `skipped by Ted (^C)`; pre-upgrade chat gets one `[System]: Policy update`; Gemini/Cursor show `connected` then `last activity Ns ago`; `/plan off` then plain text → no reply). Tick them on the PR.
+- Run a real `unite` planning session and judge the UX (via `/plan`, now on main)
 - Decide /who liveness: implement a liveness marker or amend the spec wording (final review #10)
 - Acknowledge: cursor seat runs with --trust (auto-trusts the project dir for headless cursor calls; read-only still enforced by --mode plan)
 - Dictation spike (Change 6): once plan Task 9 lands, run `node scripts/dictation-spike.mjs` in a terminal, dictate one long sentence with a spoken correction, press Ctrl-C, paste the output on the board. Decides whether plan Task 10 (`terminal: false` input) is needed. Look for: BACKSPACE bursts, CURSOR-MOVE, PASTE-START.
