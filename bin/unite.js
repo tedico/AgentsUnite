@@ -11,6 +11,7 @@ import { agyAdapter } from '../lib/adapters/agy.js';
 import { cursorAdapter } from '../lib/adapters/cursor.js';
 import { appendDigest } from '../lib/digest.js';
 import { readTranscript, lastError, appendRoundError, loadState } from '../lib/transcript.js';
+import { makeBurstMerger } from '../lib/burst.js';
 
 const root = process.cwd();
 const config = loadConfig(root);
@@ -161,7 +162,10 @@ async function handleInput(line) {
   await startRound({ humanText: text });
 }
 
-rl.on('line', handleInput);
+// Change 6: merge a burst of lines (dictation pauses, pastes) into one message.
+// Only on a TTY: piped stdin (tests, scripts) is line-oriented by nature and
+// must keep one 'line' = one input (test/cli.test.js pipes several lines at once).
+rl.on('line', process.stdin.isTTY ? makeBurstMerger(handleInput) : handleInput);
 
 rl.on('close', () => { console.log(); process.exit(0); });
 rl.prompt();
