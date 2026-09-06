@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runRound, RoundControl, applyPolicyNotice } from '../lib/engine.js';
+import { runRound, RoundControl, applyPolicyNotice, endPlanning } from '../lib/engine.js';
 import { readTranscript, loadState, appendMessage } from '../lib/transcript.js';
 import { BUDGET_NOTICE, POLICY_NOTICE } from '../lib/deltas.js';
 
-const CONFIG = { roster: ['claude', 'gemini', 'cursor'], turnCap: 8, timeoutMs: 1000, binaries: {}, models: {} };
+const CONFIG = { roster: ['claude', 'gemini', 'cursor'], turnCap: 8, timeoutMs: 1000, binaries: {}, models: {}, planner: 'claude' };
 const noStatus = () => ({ update() {}, stop() {} });
 const quietUi = { startStatus: noStatus, printReply: () => {}, printSystem: () => {} };
 const ROSTER = CONFIG.roster;
@@ -279,4 +279,73 @@ test('the policy notice reaches a seat in its next delta', async () => {
   await run(dir, { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, '@claude again');
   assert.match(claude.calls[0].prompt, /\[System\]: Policy update:/);
   assert.ok(!claude.calls[0].prompt.includes('You are Claude')); // not a first turn
+});
+
+test('/plan: planner set, plan notice appended once, planner seeded without a mention', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude');
+  const adapters = { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') };
+  await runRound({ humanText: 'build a widget', dir, adapters, config: CONFIG, ui: quietUi, control: new RoundControl(), planStart: true, planner: null });
+  const t = readTranscript(dir);
+  assert.deepEqual(t.map((m) => m.from), ['ted', 'system', 'claude']);
+  assert.match(t[1].text, /^Planning mode started by Ted\. @claude:/);
+  assert.deepEqual(t[1].mentions, []);
+  assert.equal(loadState(dir, ROSTER).planner, 'claude');
+  assert.equal(claude.calls.length, 1);
+  assert.match(claude.calls[0].prompt, /\[Ted\]: build a widget\n\[System\]: Planning mode started/);
+});
+
+test('/plan @gemini picks the planner seat', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude');
+  const gemini = fakeAdapter('gemini');
+  await runRound({ humanText: 'build a widget', dir, adapters: { claude, gemini, cursor: fakeAdapter('cursor') }, config: CONFIG, ui: quietUi, control: new RoundControl(), planStart: true, planner: 'gemini' });
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(claude.calls.length, 0);
+  assert.equal(loadState(dir, ROSTER).planner, 'gemini');
+  assert.match(readTranscript(dir)[1].text, /@gemini: invoke/);
+});
+
+test('/plan without a config planner falls back to claude', async () => {
+  const dir = tmpDir();
+  const { planner, ...noPlanner } = CONFIG;
+  const claude = fakeAdapter('claude');
+  await runRound({ humanText: 'x', dir, adapters: { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, config: noPlanner, ui: quietUi, control: new RoundControl(), planStart: true, planner: null });
+  assert.equal(claude.calls.length, 1);
+});
+
+test('planner routing: un-mentioned Ted text goes to the planner; explicit @mentions win', async () => {
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ agents: {}, planner: 'claude' }));
+  const claude = fakeAdapter('claude');
+  const gemini = fakeAdapter('gemini');
+  const adapters = { claude, gemini, cursor: fakeAdapter('cursor') };
+  await run(dir, adapters, 'blue, please');
+  assert.equal(claude.calls.length, 1);
+  await run(dir, adapters, '@gemini review this');
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(claude.calls.length, 1); // the explicit mention did not also wake the planner
+  await run(dir, adapters, '@all thoughts?');
+  assert.equal(claude.calls.length, 2);
+  assert.equal(gemini.calls.length, 2);
+});
+
+test('planner not in the roster is ignored, not crashed on', async () => {
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ agents: {}, planner: 'nobody' }));
+  const claude = fakeAdapter('claude');
+  await run(dir, { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, 'hello');
+  assert.equal(claude.calls.length, 0);
+});
+
+test('endPlanning clears the planner, appends the end notice, and plain text yields no reply', async () => {
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ agents: {}, planner: 'claude' }));
+  assert.equal(endPlanning(dir, ROSTER), 'claude');
+  assert.equal(loadState(dir, ROSTER).planner, null);
+  assert.ok(readTranscript(dir).some((m) => m.from === 'system' && m.text === 'Planning mode ended.'));
+  const claude = fakeAdapter('claude');
+  await run(dir, { claude, gemini: fakeAdapter('gemini'), cursor: fakeAdapter('cursor') }, 'hello');
+  assert.equal(claude.calls.length, 0);
+  assert.equal(endPlanning(dir, ROSTER), null); // was not on
 });

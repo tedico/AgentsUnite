@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLines, preamble, buildPrompt, BUDGET_NOTICE, TOOL_POLICY, POLICY_NOTICE, POLICY_VERSION } from '../lib/deltas.js';
+import { renderLines, preamble, buildPrompt, BUDGET_NOTICE, TOOL_POLICY, POLICY_NOTICE, POLICY_VERSION, planNotice, PLAN_END_NOTICE } from '../lib/deltas.js';
 
 const ROSTER = ['claude', 'gemini', 'cursor'];
 const MSGS = [
@@ -58,4 +58,13 @@ test('buildPrompt: delta only from cursor, preamble on first turn only', () => {
 test('budgetNotice appends the synthesis instruction', () => {
   const p = buildPrompt({ messages: MSGS, cursor: 2, seat: 'gemini', roster: ROSTER, firstTurn: false, budgetNotice: true });
   assert.ok(p.endsWith(`[System]: ${BUDGET_NOTICE}`));
+});
+
+test('planNotice addresses the chosen planner and tells it where the spec goes', () => {
+  const n = planNotice('gemini');
+  assert.match(n, /^Planning mode started by Ted\. @gemini: invoke your brainstorming skill/);
+  assert.match(n, /one clarifying question at a time/);
+  assert.match(n, /Other seats: review only when @mentioned/);
+  assert.match(n, /~\/\.claude\/plans\//);
+  assert.equal(PLAN_END_NOTICE, 'Planning mode ended.');
 });

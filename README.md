@@ -26,7 +26,9 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
 - **@mentions drive everything**: `@claude`, `@gemini`, `@cursor`, or `@all`
   (roster order). Mentioned agents reply in sequence — later speakers see
   earlier replies.
-- **No mention = a note**: logged and forwarded in later context, triggers nobody.
+- **No mention = a note**: logged and forwarded in later context, triggers
+  nobody. Exception: while `/plan` mode is on, an un-mentioned message goes to
+  the planner seat, so you can answer its questions in plain text.
 - **Agents can hand off**: a reply that @mentions another agent queues that
   agent's turn. Hard cap of 8 agent turns per human message; on a cap-hit the
   final agent is told to synthesize and you get a system notice.
@@ -37,6 +39,9 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
 
 | Input | Effect |
 |---|---|
+| `/plan <text>` | start planning mode: the planner seat (default `@claude`) drives with its brainstorming skill; your plain-text replies go to it without an @mention |
+| `/plan @seat <text>` | same, with a different seat driving |
+| `/plan off` | end planning mode (plain text goes back to being a note) |
 | `/who` | roster and each seat's binary |
 | `/last` | reprint the last agent reply |
 | `/last-error` | most recent adapter stderr (diagnose `[offline: …]`) |
@@ -51,7 +56,8 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
 - Resume is self-healing: if a CLI session expired, the adapter silently
   replays the transcript into a fresh one.
 - Optional `.unite/config.json`: roster, seat→binary map, models, `turnCap`,
-  `timeoutMs`.
+  `timeoutMs`, `planner` (seat that drives `/plan`, default `claude`), `mcp`
+  (load Ted's claude.ai connectors in the Claude seat, default `false`).
 
 ## Room rules (what the agents are told)
 
