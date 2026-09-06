@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AgentsUnite — Instruction Page</title>
+<style>
+  /* Printable one-pager. Source of truth: this file. Export: scripts/build-instructions.sh */
+  @page { size: Letter; margin: 0.42in 0.5in; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 10.6px/1.34 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1a1a1a; background: #fff;
+  }
+  code, pre, kbd { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9.6px; }
+  code { background: #f1f1f1; padding: 0 3px; border-radius: 2px; }
+  pre { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 3px; padding: 5px 7px; margin: 4px 0 6px; white-space: pre; overflow: hidden; }
+  h1 { font-size: 22px; margin: 0 0 1px; letter-spacing: -0.2px; }
+  .tag { color: #555; margin: 0 0 6px; font-size: 11px; }
+  hr.top { border: 0; border-top: 2px solid #222; margin: 0 0 8px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  h2 { font-size: 12px; margin: 7px 0 3px; padding: 2px 6px; background: #f0f0f0; border-left: 3px solid #333; }
+  h2:first-child { margin-top: 0; }
+  ul { margin: 2px 0 4px; padding-left: 14px; }
+  li { margin: 1px 0; }
+  p { margin: 2px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 3px 0 5px; }
+  th, td { border: 1px solid #ddd; padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #f6f6f6; font-weight: 600; }
+  .callout { background: #fff8dc; border: 1px solid #eadc9a; border-radius: 3px; padding: 4px 7px; margin: 5px 0; }
+  .flow { color: #444; }
+  footer { border-top: 1px solid #ccc; margin-top: 8px; padding-top: 4px; color: #666; font-size: 9px; }
+</style>
+</head>
+<body>
+
+<h1>🤝 AgentsUnite — Instruction Page</h1>
+<p class="tag">One terminal, four minds: Ted + ✳️ Claude + ✦ Gemini (Antigravity) + 🤖 Cursor 🤖</p>
+<hr class="top">
+
+<div class="cols">
+<div>
+
+<h2>Install (once)</h2>
+<pre>scripts/install.sh    # puts `unite` on your PATH</pre>
+
+<h2>Start a room</h2>
+<pre>cd &lt;any-project&gt;
+unite                 # latest chat, or "main"
+unite new &lt;name&gt;      # named chat
+unite resume          # continue, memory intact
+unite ls              # list chats
+unite digest [chat]   # record → COLLABORATION.md</pre>
+
+<h2>Talking</h2>
+<ul>
+  <li><b>@mentions drive everything</b> — <code>@claude</code> <code>@gemini</code> <code>@cursor</code> <code>@all</code>. Mentioned agents answer in sequence; later speakers see earlier replies.</li>
+  <li><b>No mention = a note</b> — logged, triggers nobody. Exception: in planning mode it goes to the planner.</li>
+  <li><b>Agents hand off</b> — a reply mentioning a peer queues its turn (even a quoted <code>@all</code>). Cap: <b>8 agent turns</b> per message; the final turn synthesizes for you.</li>
+  <li><b>Status line shows the stage</b> — <span class="flow">starting → connected → thinking → tool: &lt;name&gt; → replying</span>, plus tool count and <code>last activity Ns ago</code>. Turns take <b>10–90 s</b>.</li>
+  <li><b>Dictate freely</b> — a burst of lines within 300 ms lands as one message.</li>
+</ul>
+
+<h2>Planning mode</h2>
+<ul>
+  <li><code>/plan &lt;what to plan&gt;</code> — the planner seat (<code>@claude</code> by default) runs its brainstorming skill: classifies, asks <b>one question at a time</b>, then designs in sections.</li>
+  <li><b>Answer in plain text</b>, no @mention needed. Explicit @mentions still win for that round.</li>
+  <li><code>/plan @gemini &lt;text&gt;</code> picks another planner. <code>/plan off</code> ends it. Mode survives <code>unite resume</code>.</li>
+  <li>The room is read-only: the planner writes the spec under <code>~/.claude/plans/</code> and reports the path; you copy it into the repo.</li>
+</ul>
+
+<h2>Commands &amp; keys</h2>
+<table>
+  <tr><th>Input</th><th>Does</th></tr>
+  <tr><td><code>/plan &lt;text&gt;</code></td><td>start planning mode (planner from config)</td></tr>
+  <tr><td><code>/plan @seat &lt;text&gt;</code></td><td>same, with that seat driving</td></tr>
+  <tr><td><code>/plan off</code></td><td>end planning mode</td></tr>
+  <tr><td><code>/who</code></td><td>roster + binaries</td></tr>
+  <tr><td><code>/last</code></td><td>reprint last reply</td></tr>
+  <tr><td><code>/last-error</code></td><td>diagnose an <code>[offline: …]</code> seat</td></tr>
+  <tr><td><code>/quit</code></td><td>leave (chat persists)</td></tr>
+  <tr><td><kbd>Ctrl-C</kbd> ×1</td><td>skip the current turn → <code>[skipped by Ted (^C)]</code></td></tr>
+  <tr><td><kbd>Ctrl-C</kbd> ×2</td><td>drain the queue back to you</td></tr>
+</table>
+
+</div>
+<div>
+
+<h2>Memory</h2>
+<ul>
+  <li>Per-project <code>.unite/</code> (self-gitignoring): transcripts + native session ids.</li>
+  <li>Resume is <b>self-healing</b> — dead CLI sessions are rebuilt by transcript replay.</li>
+  <li><code>.unite/config.json</code> keys: <code>roster</code>, <code>binaries</code>, <code>models</code>, <code>turnCap</code> (8), <code>timeoutMs</code> (300000), <code>planner</code> (claude), <code>mcp</code> (false).</li>
+</ul>
+
+<h2>Room rules</h2>
+<ul>
+  <li><b>Read-only tools allowed</b> — reading files, searching, read-only shell, skills. No edits, commits, or config changes. Seats announce tool use and keep it short; you can't see inside a turn.</li>
+  <li><b>Plan mode is the seats' discipline, not a sandbox</b> — a Bash-holding seat can technically write; treat the room as read-only by convention and don't paste secrets.</li>
+  <li>Only <code>[Ted]</code> gives orders; speaker labels are spoof-proofed.</li>
+</ul>
+
+<div class="callout"><b>Quirks:</b> the Gemini seat runs the <code>agy</code> binary (old <code>gemini</code> CLI is dead); the cursor seat uses <code>--trust</code> (auto-trusts the project dir; still plan mode); the Claude seat runs <b>without your claude.ai connectors</b> (<code>mcp: false</code>) — faster, half the tokens.</div>
+
+<h2>Record a real session (for review)</h2>
+<pre>mkdir -p .unite/sessions &amp;&amp; script -q -k -F \
+  .unite/sessions/$(date +%Y%m%d-%H%M%S).log unite</pre>
+<p>Captures keystrokes + screen with timing, stays in the gitignored <code>.unite/</code>. Tell Claude to watch it live; findings become the next upgrade.</p>
+
+<h2>Crew workflow outside the room</h2>
+<ul>
+  <li><b>COLLABORATION.md is the board</b> — cross-vendor message passing by file. <i>You are the scheduler</i>: kick an agent to "check the board."</li>
+  <li><b>Topology (ratified 3/3):</b> Cursor implements → Antigravity reviews → Claude adjudicates &amp; gates the merge.</li>
+  <li><b>Git:</b> nobody pushes <code>main</code>; PRs only; Ted merges. Commits carry brand-mark trailers (✳️ / ✦ / 🤖 … 🤖).</li>
+  <li><b>This page is part of the product:</b> any upgrade that changes what you type, see, or configure updates it (<code>docs/instructions/</code>), bumps the version, and re-exports the PDF. A test enforces it.</li>
+  <li>State: <code>SPRINT.md</code>. Design history: <code>docs/superpowers/</code>.</li>
+</ul>
+
+<h2>Troubleshooting</h2>
+<ul>
+  <li><code>[offline: exit 1]</code> → <code>/last-error</code>. <code>[offline: empty reply]</code> → the seat's tool was denied; ask again with a file-read tool.</li>
+  <li><code>[skipped by Ted (^C)]</code> → you pressed Ctrl-C; nothing is wrong. The skipped request is answered on that seat's next turn.</li>
+  <li>Status stuck at <code>starting</code> &gt; 10 s → CLI not booting; <code>last activity</code> climbing → stuck inside a tool; Ctrl-C.</li>
+  <li><code>unknown seat "x"</code> → fix <code>.unite/config.json</code>.</li>
+  <li>Full live check: <code>node scripts/smoke.mjs</code> (real, billed calls; prints phases per seat).</li>
+</ul>
+
+</div>
+</div>
+
+<footer>AgentsUnite · github.com/tedico/AgentsUnite · built 2026-09-06 by Ted with ✳️ Claude, ✦ Antigravity &amp; 🤖 Cursor 🤖 · v0.2.0 · source: docs/instructions/AgentsUnite-Instructions.html</footer>
+
+</body>
+</html>
