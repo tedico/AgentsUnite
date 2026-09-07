@@ -349,3 +349,39 @@ test('endPlanning clears the planner, appends the end notice, and plain text yie
   assert.equal(claude.calls.length, 0);
   assert.equal(endPlanning(dir, ROSTER), null); // was not on
 });
+
+test('runRound accepts a caller-supplied buildPrompt and uses it for every turn', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude', [{ ok: true, replyText: 'over to @gemini', sessionRef: 's-claude' }]);
+  const gemini = fakeAdapter('gemini');
+  const seen = [];
+  const custom = (args) => { seen.push(args); return `CUSTOM for ${args.seat} from ${args.cursor}`; };
+  await runRound({ humanText: 'hey @claude', dir, adapters: { claude, gemini }, config: CONFIG, ui: quietUi, control: new RoundControl(), buildPrompt: custom });
+  assert.equal(claude.calls[0].prompt, 'CUSTOM for claude from 0');
+  assert.equal(gemini.calls[0].prompt, 'CUSTOM for gemini from 0');
+  assert.deepEqual(Object.keys(seen[0]).sort(), ['budgetNotice', 'cursor', 'firstTurn', 'messages', 'roster', 'seat']);
+  assert.equal(seen[0].firstTurn, true);
+});
+
+test('the session-lost replay also uses the caller-supplied buildPrompt', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude', [
+    { ok: false, error: 'exit 1', sessionLost: true },
+    { ok: true, replyText: 'back', sessionRef: 's-claude-2' },
+  ]);
+  const { saveState, loadState } = await import('../lib/transcript.js');
+  const st = loadState(dir, CONFIG.roster);
+  st.agents.claude.sessionRef = 's-claude-old';
+  saveState(dir, st);
+  const custom = ({ cursor, firstTurn }) => `CUSTOM cursor=${cursor} first=${firstTurn}`;
+  await runRound({ humanText: 'hey @claude', dir, adapters: { claude }, config: CONFIG, ui: quietUi, control: new RoundControl(), buildPrompt: custom });
+  assert.equal(claude.calls[0].prompt, 'CUSTOM cursor=0 first=false');
+  assert.equal(claude.calls[1].prompt, 'CUSTOM cursor=0 first=true');
+});
+
+test('without buildPrompt the CLI preamble is still used', async () => {
+  const dir = tmpDir();
+  const claude = fakeAdapter('claude');
+  await runRound({ humanText: 'hey @claude', dir, adapters: { claude }, config: CONFIG, ui: quietUi, control: new RoundControl() });
+  assert.match(claude.calls[0].prompt, /You are Claude, in a terminal group chat/);
+});
