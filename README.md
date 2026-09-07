@@ -86,6 +86,23 @@ unite digest [chat]       # append the chat's record to COLLABORATION.md
   `timeoutMs`, `planner` (seat that drives `/plan`, default `claude`), `mcp`
   (load Ted's claude.ai connectors in the Claude seat, default `false`).
 
+## Designating the lead planner
+
+By default, `@claude` drives `/plan` sessions. You can switch the lead planner on the fly or permanently:
+- **On the fly:** `/plan @gemini <what to plan>` (or `/plan @cursor <what to plan>`). All subsequent plain text replies route directly to that seat without `@mentions`.
+- **Permanent default:** Add `"planner": "gemini"` to `.unite/config.json`. Once configured, bare `/plan <topic>` invokes Gemini automatically.
+
+### Architecture: `AgentsUnite` (CLI) vs. `AgentsUniteDesktop`
+
+| Feature / Seat | `AgentsUnite` (CLI) | `AgentsUniteDesktop` |
+| :--- | :--- | :--- |
+| **`@gemini` Under the Hood** | **Google Antigravity CLI (`agy`)** | **Gemini macOS Desktop App (`com.google.GeminiMacOS`)** |
+| **Automation Boundary** | Terminal subprocess (stdin / stdout) | macOS Accessibility API (`AXUIElement`) |
+| **Tool Execution Policy** | **Enforced Plan Mode** (`--permission-mode plan`) | **Tools Enabled** (`--permission-mode acceptEdits`) |
+| **Why the Split?** | Pure terminal-first CLI workflows | Bridges closed consumer apps (Gemini Desktop has no CLI/API) |
+
+---
+
 ## Room rules (what the agents are told)
 
 - **Read-only tools, short turns** — seats may read files, search, run

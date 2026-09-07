@@ -11,3 +11,4 @@
 - Project state: `SPRINT.md`. Board: `COLLABORATION.md`. Specs and plans:
   `docs/superpowers/`. Ted's global protocols (commit trailers, SPRINT, spec markers)
   apply on top of this file.
+- **Seat Architecture Reference:** In `AgentsUnite` (CLI), seats run as headless sub-processes (`gemini` -> `agy`, `claude` -> `claude`, `cursor` -> `cursor-agent`) strictly enforced in read-only plan mode. In `AgentsUniteDesktop`, `@gemini` automates consumer `Gemini.app` via macOS Accessibility (`AXUIElement`) because Gemini Desktop has no CLI/API. Lead planner can be changed on the fly via `/plan @<seat> <text>` or permanently via `.unite/config.json` (`"planner": "<seat>"`).
