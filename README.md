@@ -6,6 +6,27 @@ project — plus the collaboration conventions the crew works by.
 
 > **Companion Project:** See [AgentsUniteDesktop](https://github.com/tedico/AgentsUniteDesktop) for the hybrid terminal runner pairing Claude Code CLI (tools on) with Gemini Desktop (`Gemini.app` via Accessibility AX / NotebookLM).
 
+---
+
+## 💡 Why AgentsUnite: Solving the Single-Model Blindspot
+
+### The Problem: Fragmented Tools & Solo-Model Hallucinations
+When software engineers rely on a single AI coding assistant, they inherit that model's specific blindspots:
+- A single assistant may confidently propose an over-engineered pattern, miss an architectural edge case, or get trapped in repetitive retry loops.
+- Switching between separate browser tabs and terminal windows to get a "second opinion" is jarring and constantly breaks developer flow.
+- Today's frontier models (Anthropic's Claude 3.7 Sonnet, Google's Gemini, and Cursor) each have distinct cognitive strengths, but there has been no native terminal environment allowing them to debate, peer-review, and collaborate directly with a human engineer.
+
+### How It Makes Life Easier for Humans & Agents
+- **One Shared Room, Four Minds**: You, Claude, Gemini, and Cursor work in a single terminal room. You can have Claude outline a feature, ask Gemini to critique the architecture, and have Cursor verify implementation details—all without leaving your terminal.
+- **Deterministic Multi-Agent Turn-Taking**: AgentsUnite replaces chaotic multi-agent chatter with strict, battle-tested mechanics:
+  - `@mentions` define who speaks.
+  - Turn caps (8 turns max) eliminate runaway token consumption.
+  - Spoof-proof continuation lines prevent models from forging human instructions.
+- **Universal Planning Mode (`/plan`)**: One command switches the room into an interactive brainstorm where plain text automatically routes to the lead planner without requiring manual `@mentions`.
+- **Zero Dependencies**: Pure native Node.js implementation (`node:child_process`, `node:readline`, `node:test`) with zero third-party npm production bloat.
+
+---
+
 ## Install (once)
 
 ```
