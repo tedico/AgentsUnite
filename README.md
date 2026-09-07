@@ -4,6 +4,8 @@ One terminal. Four minds. `unite` is a zero-dependency group chat where Ted,
 Claude, Gemini (Antigravity), and Cursor hold planning sessions inside any
 project — plus the collaboration conventions the crew works by.
 
+> **Companion Project:** See [AgentsUniteDesktop](https://github.com/tedico/AgentsUniteDesktop) for the hybrid terminal runner pairing Claude Code CLI (tools on) with Gemini Desktop (`Gemini.app` via Accessibility AX / NotebookLM).
+
 ## Install (once)
 
 ```
